@@ -43,3 +43,6 @@ Thumbs.db
 
 # Temporary AI knowledge-base sources (read-only clones, never committed)
 .ai-sources/
+
+# Local agent workspace metadata (not part of the project)
+.freebuff/

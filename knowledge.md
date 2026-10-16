@@ -10,7 +10,13 @@
 - **TubigWatch** — a Metro Manila water-outage tracker. It aggregates and presents service advisories / interruptions from the two metro water concessionaires: **Maynilad** and **Manila Water**.
 - **Primary users:** Metro Manila residents (and barangay / LGU admins) checking whether water is out, for how long, and where — often on a phone, often in a hurry, sometimes during an active outage.
 - **Core job of the UI:** answer "is my area affected, when, and for how long?" in one screen, fast, legibly.
-- **Status:** Phase 0 — repository bootstrap only. No application code, no framework, no `package.json` yet. Architecture is intentionally undefined (see `ARCHITECTURE.md`).
+- **Status:** v1 architecture is locked in `ARCHITECTURE.md`; scaffolding is the next task. No application code, no framework, no `package.json` yet.
+
+---
+
+## Architecture
+
+`ARCHITECTURE.md` is the source of truth for the v1 design: stack, data model, ingestion, UI, security, and non-goals. Read it before any task that touches app code. Locked stack in one line: **Next.js 15 App Router + React 19 (TypeScript 5 strict), Tailwind CSS v4 + shadcn/ui, Zod 3, native fetch with Next.js cache tags, useState/useReducer only, hand-rolled PWA service worker, Vitest + Playwright, ESLint 9 + `scripts/check-antislop.mjs`, npm.** Substitutions require a written reason.
 
 ---
 
