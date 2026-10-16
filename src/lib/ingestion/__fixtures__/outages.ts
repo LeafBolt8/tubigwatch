@@ -1,15 +1,19 @@
 // Fictional fixtures. Real ingestion lands in Phase 2 Step 2.
+// All timestamps are real Date objects — the schemas coerce strings at parse time, and the
+// `z.infer` type is `Date`, so fixture literals must be Date instances, not ISO strings.
 
-import type { Outage } from '@/lib/schemas';
+import { Outage, OutageSchema } from '@/lib/schemas/outage';
 
-export const outageFixtures: Outage[] = [
+const UTC = (iso: string) => new Date(iso);
+
+const _outageFixtures: Outage[] = [
   {
     id: 'maynilad-qc-kalusugan-20261016-0600',
     concessionaire: 'maynilad',
     status: 'active',
     reason: 'Emergency repair of a 300mm mainline leak along Quirino Highway.',
-    startsAt: '2026-10-16T06:00:00+08:00',
-    estimatedRestoration: '2026-10-16T18:00:00+08:00',
+    startsAt: UTC('2026-10-16T06:00:00+08:00'),
+    estimatedRestoration: UTC('2026-10-16T18:00:00+08:00'),
     affectedAreas: [
       {
         barangays: [
@@ -21,7 +25,7 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.mayniladwater.com.ph/advisories/qc-kalusugan-20261016',
-      fetchedAt: '2026-10-16T06:14:00+08:00',
+      fetchedAt: UTC('2026-10-16T06:14:00+08:00'),
       raw: 'Interruption: Kalusugan, Quezon City. Emergency mainline repair. 06:00 to 18:00.',
     },
     confidence: 'official',
@@ -31,8 +35,8 @@ export const outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'active',
     reason: 'Scheduled valve replacement at the Poblacion pumping station ran over its window.',
-    startsAt: '2026-10-16T05:00:00+08:00',
-    endsAt: '2026-10-16T20:00:00+08:00',
+    startsAt: UTC('2026-10-16T05:00:00+08:00'),
+    endsAt: UTC('2026-10-16T20:00:00+08:00'),
     affectedAreas: [
       {
         barangays: [{ name: 'Poblacion', city: 'Makati', province: 'Metro Manila' }],
@@ -41,7 +45,7 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.manilawater.com/service-updates/poblacion-20261016',
-      fetchedAt: '2026-10-16T06:20:00+08:00',
+      fetchedAt: UTC('2026-10-16T06:20:00+08:00'),
       raw: 'Service update: Poblacion, Makati. Valve replacement overrun. 05:00 to 20:00.',
     },
     confidence: 'official',
@@ -51,9 +55,9 @@ export const outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'scheduled',
     reason: 'Interconnection works for the Ususan service line.',
-    startsAt: '2026-10-17T22:00:00+08:00',
-    endsAt: '2026-10-18T04:00:00+08:00',
-    estimatedRestoration: '2026-10-18T04:00:00+08:00',
+    startsAt: UTC('2026-10-17T22:00:00+08:00'),
+    endsAt: UTC('2026-10-18T04:00:00+08:00'),
+    estimatedRestoration: UTC('2026-10-18T04:00:00+08:00'),
     affectedAreas: [
       {
         barangays: [{ name: 'Ususan', city: 'Taguig', province: 'Metro Manila', psgcCode: '137607002' }],
@@ -62,7 +66,7 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.manilawater.com/service-updates/ususan-20261017',
-      fetchedAt: '2026-10-16T07:05:00+08:00',
+      fetchedAt: UTC('2026-10-16T07:05:00+08:00'),
       raw: 'Scheduled: Ususan, Taguig. Interconnection works. 22:00 to 04:00.',
     },
     confidence: 'official',
@@ -72,8 +76,8 @@ export const outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'scheduled',
     reason: 'Reservoir cleaning at the Kapitolyo facility.',
-    startsAt: '2026-10-18T23:00:00+08:00',
-    endsAt: '2026-10-19T05:00:00+08:00',
+    startsAt: UTC('2026-10-18T23:00:00+08:00'),
+    endsAt: UTC('2026-10-19T05:00:00+08:00'),
     affectedAreas: [
       {
         barangays: [{ name: 'Kapitolyo', city: 'Pasig', province: 'Metro Manila', psgcCode: '137403013' }],
@@ -83,7 +87,7 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.manilawater.com/service-updates/kapitolyo-20261018',
-      fetchedAt: '2026-10-16T07:11:00+08:00',
+      fetchedAt: UTC('2026-10-16T07:11:00+08:00'),
       raw: 'Scheduled: Kapitolyo, Pasig. Reservoir cleaning. 23:00 to 05:00.',
     },
     confidence: 'official',
@@ -93,8 +97,8 @@ export const outageFixtures: Outage[] = [
     concessionaire: 'maynilad',
     status: 'restored',
     reason: 'Pipe burst along A. Mabini Street repaired ahead of the published estimate.',
-    startsAt: '2026-10-15T08:00:00+08:00',
-    endsAt: '2026-10-15T15:30:00+08:00',
+    startsAt: UTC('2026-10-15T08:00:00+08:00'),
+    endsAt: UTC('2026-10-15T15:30:00+08:00'),
     affectedAreas: [
       {
         barangays: [{ name: 'Barangay 176', city: 'Caloocan', province: 'Metro Manila' }],
@@ -103,7 +107,7 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.mayniladwater.com.ph/advisories/caloocan-176-20261015',
-      fetchedAt: '2026-10-16T06:40:00+08:00',
+      fetchedAt: UTC('2026-10-16T06:40:00+08:00'),
       raw: 'Restored: Barangay 176, Caloocan. Pipe burst repaired at 15:30.',
     },
     confidence: 'official',
@@ -113,7 +117,7 @@ export const outageFixtures: Outage[] = [
     concessionaire: 'maynilad',
     status: 'cancelled',
     reason: 'Planned pressure testing in Poblacion was called off by the operations team.',
-    startsAt: '2026-10-19T01:00:00+08:00',
+    startsAt: UTC('2026-10-19T01:00:00+08:00'),
     affectedAreas: [
       {
         barangays: [{ name: 'Poblacion', city: 'Makati', province: 'Metro Manila' }],
@@ -122,9 +126,20 @@ export const outageFixtures: Outage[] = [
     ],
     source: {
       url: 'https://www.mayniladwater.com.ph/advisories/makati-poblacion-20261019',
-      fetchedAt: '2026-10-16T07:30:00+08:00',
+      fetchedAt: UTC('2026-10-16T07:30:00+08:00'),
       raw: 'Cancelled: Poblacion, Makati. Pressure testing withdrawn.',
     },
     confidence: 'inferred',
   },
 ];
+
+// Runtime guard: every fixture must parse under the canonical schema. This is the same
+// assertion the unit tests run, duplicated here so a bad edit to the array fails at load
+// time in any consumer that imports the module (tests, future ingestors).
+for (const f of _outageFixtures) {
+  OutageSchema.parse(f);
+}
+
+export const outageFixtures = _outageFixtures;
+
+

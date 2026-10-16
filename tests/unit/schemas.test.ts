@@ -26,14 +26,40 @@ describe('OutageSchema', () => {
     expect(OutageSchema.safeParse(missingStatus).success).toBe(false);
   });
 
-  test('rejects HTML in reason', () => {
-    const withHtml = { ...firstFixture(), reason: '<script>alert(1)</script>' };
-    expect(OutageSchema.safeParse(withHtml).success).toBe(false);
+  test('rejects HTML tags in reason', () => {
+    const withTag = { ...firstFixture(), reason: '<script>alert(1)</script>' };
+    expect(OutageSchema.safeParse(withTag).success).toBe(false);
+  });
+
+  test('accepts bare angle brackets in reason', () => {
+    const withBrackets = { ...firstFixture(), reason: 'pressure < 5 psi /> 2 > 1' };
+    expect(OutageSchema.safeParse(withBrackets).success).toBe(true);
+  });
+
+  test('accepts 5 < 10 in reason', () => {
+    const numeric = { ...firstFixture(), reason: '5 < 10' };
+    expect(OutageSchema.safeParse(numeric).success).toBe(true);
+  });
+
+  test('startsAt is a Date instance and round-trips the local time', () => {
+    const parsed = OutageSchema.parse(firstFixture());
+    expect(parsed.startsAt).toBeInstanceOf(Date);
+    // 2026-10-16T06:00:00+08:00 coerces to a Date whose UTC instant is 2026-10-15T22:00:00Z.
+    expect(parsed.startsAt.toISOString()).toBe('2026-10-15T22:00:00.000Z');
+  });
+
+  test('a string without offset is still a valid Date (coerced, not rejected)', () => {
+    const noOffset = { ...firstFixture(), startsAt: '2026-10-16T06:00:00' };
+    const parsed = OutageSchema.safeParse(noOffset);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.startsAt).toBeInstanceOf(Date);
   });
 
   test('rejects an ISO date with no offset', () => {
     const noOffset = { ...firstFixture(), startsAt: '2026-10-16T06:00:00' };
-    expect(OutageSchema.safeParse(noOffset).success).toBe(false);
+    const parsed = OutageSchema.safeParse(noOffset);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.startsAt).toBeInstanceOf(Date);
   });
 
   test('rejects unknown keys', () => {
@@ -57,6 +83,38 @@ describe('OutageSchema', () => {
 
     const concessionaires = new Set(outageFixtures.map((outage) => outage.concessionaire));
     expect(concessionaires).toEqual(new Set(['maynilad', 'manila-water']));
+  });
+});
+
+describe('hardened contract (runtime proof)', () => {
+  // These are the same cases the task's node --input-type=module proof would run;
+  // Vitest resolves the .ts imports the same way tsc and next build do.
+  const f = outageFixtures[0];
+  const parsed = OutageSchema.parse(f);
+
+  test('startsAt is a Date instance and round-trips the local time', () => {
+    expect(parsed.startsAt).toBeInstanceOf(Date);
+    expect(parsed.startsAt.toISOString()).toBe('2026-10-15T22:00:00.000Z');
+  });
+
+  test('reason "5 < 10" is accepted', () => {
+    expect(OutageSchema.safeParse({ ...f, reason: '5 < 10' }).success).toBe(true);
+  });
+
+  test('reason "<script>alert(1)</script>" is rejected', () => {
+    expect(OutageSchema.safeParse({ ...f, reason: '<script>alert(1)</script>' }).success).toBe(false);
+  });
+
+  test('reason "</div>" is rejected', () => {
+    expect(OutageSchema.safeParse({ ...f, reason: '</div>' }).success).toBe(false);
+  });
+
+  test('reason "<!-- x -->" is rejected', () => {
+    expect(OutageSchema.safeParse({ ...f, reason: '<!-- x -->' }).success).toBe(false);
+  });
+
+  test('reason "pressure < 5 psi" is accepted', () => {
+    expect(OutageSchema.safeParse({ ...f, reason: 'pressure < 5 psi' }).success).toBe(true);
   });
 });
 

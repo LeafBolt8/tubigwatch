@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { ConcessionaireSchema } from './concessionaire';
-import { ISO_DATETIME_OPTIONS, SourceProvenanceSchema } from './outage';
+import { SourceProvenanceSchema } from './outage';
 
 export const AdvisoryCategorySchema = z.enum(['pressure', 'quality']);
 
@@ -14,8 +14,11 @@ export const AdvisorySchema = z
     body: z
       .string()
       .max(2000)
-      .refine((value) => !/[<>]/.test(value), { message: 'body must not contain HTML' }),
-    issuedAt: z.string().datetime(ISO_DATETIME_OPTIONS),
+      .refine(
+        (value) => !/<\s*[a-zA-Z/!]/.test(value),
+        { message: 'body must not contain HTML tags' },
+      ),
+    issuedAt: z.coerce.date(),
     source: SourceProvenanceSchema,
   })
   .strict();

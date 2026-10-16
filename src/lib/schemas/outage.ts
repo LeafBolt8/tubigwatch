@@ -4,13 +4,13 @@ import { AffectedAreaSchema } from './affected-area';
 import { ConcessionaireSchema } from './concessionaire';
 import { OutageStatusSchema } from './outage-status';
 
-// Zod 3 rejects a trailing UTC offset unless `offset: true` is passed.
-export const ISO_DATETIME_OPTIONS = { offset: true } as const;
+// Timestamps are coerced to Date at parse time so downstream code never compares them lexically.
+// z.coerce.date() accepts ISO strings (with or without offset) and rejects non-date text.
 
 export const SourceProvenanceSchema = z
   .object({
     url: z.string().url(),
-    fetchedAt: z.string().datetime(ISO_DATETIME_OPTIONS),
+    fetchedAt: z.coerce.date(),
     raw: z.string(),
   })
   .strict();
@@ -25,10 +25,13 @@ export const OutageSchema = z
     reason: z
       .string()
       .max(500)
-      .refine((value) => !/[<>]/.test(value), { message: 'reason must not contain HTML' }),
-    startsAt: z.string().datetime(ISO_DATETIME_OPTIONS),
-    endsAt: z.string().datetime(ISO_DATETIME_OPTIONS).optional(),
-    estimatedRestoration: z.string().datetime(ISO_DATETIME_OPTIONS).optional(),
+      .refine(
+        (value) => !/<\s*[a-zA-Z/!]/.test(value),
+        { message: 'reason must not contain HTML tags' },
+      ),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date().optional(),
+    estimatedRestoration: z.coerce.date().optional(),
     affectedAreas: z.array(AffectedAreaSchema),
     source: SourceProvenanceSchema,
     confidence: OutageConfidenceSchema,
