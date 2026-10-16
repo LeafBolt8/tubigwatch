@@ -74,6 +74,8 @@ Recommendation for Phase 2 Step 2: attempt the Manila Water service-updates subp
 - ISO 8601 with `+08:00` offset in the JSON-LD: `2026-09-28T16:42:29+08:00` (page modified), `2020-02-27T02:58:20+08:00` (page published).
 - No per-advisory date is present on the homepage (advisories are loaded client-side).
 - Filipino month names (Agosto / Setyembre / etc.) were NOT found in the homepage visible text — so if advisory cards on the actual advisories pages use them, that's a separate finding for the advisories-page fetch.
+- The Maynilad data IS current and real: emergency rows dated October 15–17, 2026 and scheduled rows October 01–31, 2026, matching the fetch date of 2026-10-16. So Maynilad's endpoints are live and producing current advisories.
+- Month observed in the real advisory rows: English "October" (no Filipino month names needed for the observed format).
 
 ---
 
@@ -84,3 +86,33 @@ Recommendation for Phase 2 Step 2: attempt the Manila Water service-updates subp
 - `src/lib/ingestion/__fixtures__/raw/manila-water-robots.txt`  (actually the 404 HTML page, not a robots.txt)
 - `src/lib/ingestion/__fixtures__/raw/manila-water-20261016.html`  (the 403 Cloudflare challenge body)
 - `src/lib/ingestion/__fixtures__/raw/RECON.md`  (this file)
+- `src/lib/ingestion/__fixtures__/raw/maynilad-wp_jsoninterruptions.json`  (round 2: route index, 1,303 B)
+- `src/lib/ingestion/__fixtures__/raw/maynilad-wp_jsoninterruptionsemergency.json`  (round 2: emergency fragment, 1,807 B)
+- `src/lib/ingestion/__fixtures__/raw/maynilad-wp_jsoninterruptionsscheduled.json`  (round 2: scheduled fragment, 1,971 B)
+- `src/lib/ingestion/__fixtures__/raw/maynilad-wp_jsoninterruptionsrotational.json`  (round 2: rotational empty fragment, 291 B)
+- `src/lib/ingestion/__fixtures__/raw/manila-water-www.manilawater.com_service-updates.html`  (round 2: 403)
+- `src/lib/ingestion/__fixtures__/raw/manila-water-www.manilawater.com_advisories.html`  (round 2: 403)
+- `src/lib/ingestion/__fixtures__/raw/manila-water-www.manilawater.com_customer-service_service-updates.html`  (round 2: 403)
+
+---
+
+## Maynilad ingestion module (built: see commit feat(ingestion): Maynilad fetcher + parser)
+
+Built in `src/lib/ingestion/`:
+- `parse-html-table.ts` — dependency-free tokenizer for the advisory `<table class="advisory-table">` fragment.
+- `parse-maynilad.ts` — `parseMayniladDate("October 15, 2026" -> Date at 00:00 +08:00)` and `parseMayniladTimeWindow("11:00 PM to 6:00 AM", both casings)`.
+- `barangay-normalize.ts` — normalize `Brgys. 160, 162 and 163` -> 3 barangays; range forms -> single inferred.
+- `row-to-partial-outage.ts` — map a parsed row onto a PartialOutageRow (date+time combine, trailing-city strip).
+- `maynilad.ts` — `fetchMayniladOutages()`: throttled fetch (1 req/s, 60s timeout) of emergency/scheduled/rotational, group rows by (startsAt, endsAt, reason), build Outage[], validate each through OutageSchema, dev-mode fixture fallback.
+
+Grouping rule (documented in maynilad.ts): rows with identical (startsAt, endsAt, reason) collapse into ONE Outage with multiple affectedAreas; otherwise separate outages.
+
+ID scheme: `sha1(concessionaire + startsAt.toISOString() + sorted barangay names joined by "|")`, Node crypto, no new dep.
+
+Fixtures used for dev-mode fallback + tests: the saved raw JSON in `src/lib/ingestion/__fixtures__/raw/` (maynilad-wp_jsoninterruptionsemergency.json etc.). Tests mock fetch to return those exact bytes.
+
+Follow-ups still open (NOT done):
+1. Confirm Maynilad page-2+ query param by fetching `/wp-json/interruptions/emergency?page=2` (and/or `?next=48753`) and seeing which returns rows.
+2. Confirm whether Maynilad's `/service-advisories/` and `/service-advisories-2/` pages are server-rendered static HTML or also rely on the REST fragments.
+3. Decide the Manila Water path: Playwright fetch of one subpage vs fixtures-only.
+4. Fetch `/wp-json/interruptions/traffic` to see if it shares the HTML-fragment shape.

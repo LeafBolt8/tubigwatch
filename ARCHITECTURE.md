@@ -46,10 +46,12 @@ All schemas live in `src/lib/schemas/`. Each schema exports a matching `z.infer`
 Every schema is `.strict()`. Parse failures are logged with the raw payload for debugging and never surfaced raw to users.
 
 ## 4. Ingestion Layer
-- Sources: Maynilad public advisories page + Manila Water service updates page. Both HTML scraped; if either publishes RSS/JSON, prefer it and record why in a comment.
+- Sources:
+  - Maynilad: WP REST endpoints `/wp-json/interruptions/{emergency,scheduled,rotational,traffic}`. Each returns a JSON object whose value is a STRING containing an HTML `<table class="advisory-table">` fragment (NOT a JSON array of objects). The Maynilad fetcher (`src/lib/ingestion/maynilad.ts`) fetches these, parses the HTML table fragment with a dependency-free tokenizer, normalizes rows into `Outage[]`, and validates each through `OutageSchema`. Endpoints are slow (20–30s observed); timeout is 60s. One request per second max (in-process throttle). Dev mode falls back to `src/lib/ingestion/__fixtures__/raw/` when live fetch fails and marks the UI "demo data". No HTML scraping of Maynilad pages is required.
+  - Manila Water: **Cloudflare-blocked at every probed path** (homepage + `/service-updates` + `/advisories` + `/customer-service/service-updates` all returned 403 challenge pages in recon round 2). At v1, Manila Water is fixtures-only: `src/lib/ingestion/__fixtures__/` provides realistic Metro Manila samples, and the Manila Water fetcher will not be written until a reachable path is confirmed (Phase 4 revisit). If a future Manila Water subpage returns real content, the parser will follow the same HTML-table-fragment shape if that's what Manila Water serves; otherwise a page-specific parser is written then.
 - Location: `src/lib/ingestion/<concessionaire>.ts` — one module per source, each exporting `fetchOutages(): Promise<Outage[]>` returning validated data or throwing a typed `IngestionError`.
-- Pipeline: fetch -> parse HTML -> extract rows -> normalize -> Zod validate -> return.
-- Resilience: if one source fails, the other still renders. Failed sources surface a dismissible banner ("Maynilad data delayed"). Never fabricate outages to fill a gap.
+- Pipeline (Maynilad): fetch -> parse JSON string -> extract HTML table fragment -> parseHtmlTable() -> rowToPartialOutage() -> group rows by (startsAt, endsAt, reason) -> build Outage[] -> OutageSchema.parse each -> return.
+- Resilience: if one source fails, the other still renders. Failed sources surface a dismissible banner ("Maynilad data delayed" / "Manila Water data delayed"). Never fabricate outages to fill a gap.
 - Cache: Next.js fetch cache with `revalidate: 3600` per source tag (`maynilad`, `manila-water`). Manual revalidation endpoint `POST /api/revalidate` protected by a secret.
 - Seed data: `src/lib/ingestion/__fixtures__/` contains realistic Metro Manila samples (Quezon City, Makati, Taguig, Pasig, Caloocan) with fictional-but-plausible streets. Dev mode falls back to fixtures when live fetch fails and marks the UI "demo data".
 

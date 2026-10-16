@@ -18,9 +18,18 @@
 
 `ARCHITECTURE.md` is the source of truth for the v1 design: stack, data model, ingestion, UI, security, and non-goals. Read it before any task that touches app code. Locked stack in one line: **Next.js 15 App Router + React 19 (TypeScript 5 strict), Tailwind CSS v4 + shadcn/ui, Zod 3, native fetch with Next.js cache tags, useState/useReducer only, hand-rolled PWA service worker, Vitest + Playwright, ESLint 9 + `scripts/check-antislop.mjs`, npm.** Substitutions require a written reason.
 
----
+---## Data freshness policy
 
-## Data freshness policy
+No-data is not the same as clear. A source that returns nothing is not a source that reports no outages.
+
+- Three states, always visually distinct: `fresh` (<2h old), `stale` (<24h old), `unavailable` (older than 24h, or a fetch that failed).
+- A source failure is surfaced to the user, never hidden and never silently rendered as "no outages".
+- `fresh` with zero outages is a real, good result and must look different from `unavailable`.
+- Enforced in code: `classifyFreshness()` in `src/lib/schemas/freshness.ts`.
+- A manual operator override arrives in a later phase.
+- Maynilad endpoints take 20–30s; fetcher timeout must be >=60s. If all endpoints fail, freshness = 'unavailable'. UI MUST show 'unavailable' distinctly — never render it as 'fresh, zero outages'.
+
+
 
 No-data is not the same as clear. A source that returns nothing is not a source that reports no outages.
 
