@@ -52,9 +52,10 @@ npm test
 - **Do not claim a gate passed when it did not run.** If a gate cannot run (e.g. no `package.json` yet), say so explicitly and state why.
 - A green build/exit code is **not** proof of the requested behavior. Verify the artifact through the interface the user actually uses (run it, click it through, check the console).
 - Fix the **cause** of a failing gate. Never skip tests, weaken assertions, swallow errors, or add type/lint suppressions just to make a check go green.
+- For any UI change, also run the tooled anti-slop guardrail and fix what it reports (or document a deliberate exception with a written reason): `node scripts/check-antislop.mjs`.
 - After any later edit, re-run the affected checks — an earlier pass does not cover a later change.
 
-Sources: `knowledge.md` §4; `.ai-sources/agent-skills/references/definition-of-done.md`; `.ai-sources/agent-skills/skills/incremental-implementation/SKILL.md` (Increment Checklist); `.ai-sources/anti-slop/antislop.md` R-35.
+Sources: `knowledge.md` §4, §4.1; `.ai-sources/agent-skills/references/definition-of-done.md`; `.ai-sources/agent-skills/skills/incremental-implementation/SKILL.md` (Increment Checklist); `.ai-sources/anti-slop/antislop.md` R-35.
 
 ## 4. Verification & TDD
 

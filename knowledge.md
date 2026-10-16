@@ -78,6 +78,22 @@ Source: `addyosmani/agent-skills`. Lifecycle: DEFINE → PLAN → BUILD → VERI
 - Rule: a successful build or exit code alone does not prove the requested behavior; test the artifact through the interface the user uses. Provenance (principle): `agent-skills` `references/definition-of-done.md` ("verified at runtime, not just compiled or typechecked") and `incremental-implementation` Increment Checklist (typecheck/lint/build/test).
 - Rule: "It's done, I just haven't run it yet" is not done. Provenance: `references/definition-of-done.md` Red Flags.
 
+### 4.1 Automated anti-slop guardrail (tooled)
+
+The three prompt-level bans in §2.1 that are statically detectable are enforced by a dependency-free checker, so they fail a build instead of relying on the reader:
+
+```
+node scripts/check-antislop.mjs
+```
+
+- `scripts/antislop-rules.mjs` — detectors. `scripts/check-antislop.mjs` — CLI, exits 1 on any violation. `scripts/*.test.mjs` — tests (`node --test scripts/*.test.mjs`).
+- Rules: `ANTISLOP-01` default AI purple / blue-cyan gradient (R-01), `ANTISLOP-02` page-wide glass (`*`/`html`/`body`/`:root`/`main`, or more than 2 blur elements per file) (R-10), `ANTISLOP-03` dead control — button with no handler, `href="#"`/empty link, or an empty event handler (R-26, R-24).
+- A deliberate exception requires a written reason, matching R-31: `// antislop-allow: <reason>` on the same line or the line above, or `// antislop-allow-file: <reason>` for a whole file. A marker without a reason does not suppress.
+- `.github/workflows/antislop.yml` runs the checker and its tests on every push and PR, so the bans block a merge.
+- **Not yet in the four gates.** With no `package.json`, this cannot be an `npm` script yet; wire it into `lint`/`build` when scaffolding lands. Until then, run it directly for any UI change.
+
+Provenance: project tooling (not sourced). It implements `anti-slop` R-01, R-10, R-24, R-26, R-31 cited in §2.
+
 ---
 
 ## 5. HITL sync protocol (mandatory run close-out)
@@ -107,6 +123,7 @@ Provenance: task-brief-defined protocol (this repo's bootstrap task, STEP 6); th
 - [ ] No purple-blue default gradient, no page-wide glass, no fabricated content, no dead controls. (§2.1)
 - [ ] Layout verified at 320px; tap targets ≥ 44px; no horizontal overflow. (§2.2)
 - [ ] Gates run or explicitly reported as NOT RUN. (§4)
+- [ ] `node scripts/check-antislop.mjs` passes for any UI change, or each exception carries an `antislop-allow` reason. (§4.1)
 - [ ] Tree left committable; commits atomic; message explains why. (§3)
 - [ ] Run ends with the telemetry payload. (§5)
 
