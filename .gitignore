@@ -46,3 +46,7 @@ Thumbs.db
 
 # Local agent workspace metadata (not part of the project)
 .freebuff/
+
+# Playwright
+/playwright-report/
+/test-results/
