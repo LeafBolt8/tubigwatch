@@ -20,6 +20,7 @@ This file governs any coding agent (Freebuff, Claude Code, Cursor, Codex, Copilo
 ## 1. Scope discipline
 
 - Before any task that touches app code, read ARCHITECTURE.md. Deviations from the locked stack require an explicit, written reason.
+- Never collapse 'no data' into 'no outages' at any layer (schema, ingestion, UI).
 - **Do exactly the stated task. Nothing more.** Do not touch files outside the task's stated scope.
 - **Never refactor, re-format, rename, or "clean up" code adjacent to your change.** If you notice something worth improving, **note it — do not fix it** (list it as a follow-up suggestion instead).
 - **Do not remove comments or code you do not fully understand.**

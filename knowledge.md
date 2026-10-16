@@ -20,6 +20,18 @@
 
 ---
 
+## Data freshness policy
+
+No-data is not the same as clear. A source that returns nothing is not a source that reports no outages.
+
+- Three states, always visually distinct: `fresh` (<2h old), `stale` (<24h old), `unavailable` (older than 24h, or a fetch that failed).
+- A source failure is surfaced to the user, never hidden and never silently rendered as "no outages".
+- `fresh` with zero outages is a real, good result and must look different from `unavailable`.
+- Enforced in code: `classifyFreshness()` in `src/lib/schemas/freshness.ts`.
+- A manual operator override arrives in a later phase.
+
+---
+
 ## 2. Anti-slop filter
 
 Source: `miqdadbadjuber/anti-slop`. This section distills the core rulebook and its skills. The filter is **a filter, not a style guide**: it removes generic AI output and holds every technique to a stated purpose; it does not prescribe a house aesthetic on its own.
