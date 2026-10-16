@@ -8,6 +8,10 @@ export default defineConfig({
   webServer: {
     command: 'npm run start',
     port: 3000,
+    // `next start` honours an ambient PORT (this shell has PORT=0, which makes
+    // the OS pick a random port). Pin it so the server matches `port` above and
+    // the spec's baseURL.
+    env: { PORT: '3000' },
     reuseExistingServer: !process.env.CI,
   },
 });
