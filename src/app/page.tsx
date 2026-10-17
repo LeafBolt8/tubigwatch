@@ -93,12 +93,14 @@ function areaLabel(outage: Outage): string {
 
 // now is used so localTime is always UTC-safe at display time even when the same Date is passed
 // from multiple places; the rendered value still honors Asia/Manila, not the server TZ.
-function localTime(date: Date | null, now: Date): string {
+function localTime(date: Date | string | null, now: Date): string {
   if (!date) return 'unknown time';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'unknown time';
   // Defensive: if the page is somehow rendering with a far-future now (shouldn't happen), still
   // format the stored time rather than fabricating one.
   now.toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
-  return date.toLocaleString('en-PH', {
+  return d.toLocaleString('en-PH', {
     timeZone: 'Asia/Manila',
     month: 'short',
     day: 'numeric',
@@ -109,10 +111,9 @@ function localTime(date: Date | null, now: Date): string {
 }
 
 function countdownText(outage: Outage, now: Date): string | null {
-  const status = computeStatus(outage, now);
-  if (status !== 'active') return null;
-  const endsAt = outage.endsAt ?? null;
-  if (!endsAt) return null;
+  if (!outage.endsAt) return null;
+  const endsAt = new Date(outage.endsAt);
+  if (isNaN(endsAt.getTime())) return null;
   if (endsAt <= now) return null;
 
   const diffMs = endsAt.getTime() - now.getTime();
