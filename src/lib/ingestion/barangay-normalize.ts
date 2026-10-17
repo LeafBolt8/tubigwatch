@@ -45,24 +45,26 @@ export function normalizeBarangays(raw: string): NormalizedBarangay[] {
 
   // "Brgy. Holy Spirit" -> body = "Holy Spirit"
 
-  // If there is a " to " range OR an " and " that joins two multi-word ranges, splitting is
-  // unreliable without a barangay lexicon — keep raw.
-  if (/\bto\b/i.test(body) || /\band\b/.test(body) && body.includes(',')) {
+  // A " to " range cannot be expanded without a barangay lexicon — keep the raw cell.
+  if (/\bto\b/i.test(body)) {
     return [{ name: raw.trim(), confidence: 'inferred' }];
   }
 
   // "Brgys. 160, 162 and 163" -> parts = ["160","162","163"]
-  const parts = body.split(/,|\band\b/).map((p) => p.trim()).filter(Boolean);
+  const parts = body
+    .split(/,|\band\b/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return [];
 
-  // Each part is a simple token. Validate it looks like a real barangay name/number.
+  // Each part must be a simple barangay name/number. If any part is ambiguous, keep the whole
+  // cell as one inferred barangay rather than fabricating a split.
   const out: NormalizedBarangay[] = [];
   for (const p of parts) {
-    // Single-token numeric or short named barangay -> official.
     if (/^\d+[A-Za-z]?$/.test(p) || /^[A-Za-z][A-Za-z .'-]{0,20}$/.test(p)) {
       out.push({ name: p, confidence: 'official' });
     } else {
-      // Ambiguous token -> fall back to inferred for the whole cell.
-      return [{ name: raw.trim(), confidence: 'inferred' } as NormalizedBarangay];
+      return [{ name: raw.trim(), confidence: 'inferred' }];
     }
   }
   return out;

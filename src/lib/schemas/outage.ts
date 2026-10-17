@@ -40,6 +40,5 @@ export const OutageSchema = z
 
 export type SourceProvenance = z.infer<typeof SourceProvenanceSchema>;
 export type OutageConfidence = z.infer<typeof OutageConfidenceSchema>;
-export type OutageStatus = z.infer<typeof OutageStatusSchema>;
 export type Outage = z.infer<typeof OutageSchema>;
-export type OutageInput = Omit<typeof Outage, 'id'> & { id?: string };
+export type OutageInput = Omit<Outage, 'id'> & { id?: string };

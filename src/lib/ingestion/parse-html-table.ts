@@ -53,9 +53,11 @@ export function isEmptyFragment(fragment: string): boolean {
   return !/<tr[\s>]/i.test(fragment);
 }
 
-const TH_RE = /<th[^>]*>([\s\S]*?)<\/th>/gi;
-const TD_RE = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-const TR_RE = /<tr[\s>][\s\S]*?<\/tr>/gi;
+// \b after the tag name: without it "<th[^>]*>" also matches "<thead>", swallowing the
+// first header cell's opening tag into the capture.
+const TH_RE = /<th\b[^>]*>([\s\S]*?)<\/th>/gi;
+const TD_RE = /<td\b[^>]*>([\s\S]*?)<\/td>/gi;
+const TR_RE = /<tr\b[\s>][\s\S]*?<\/tr>/gi;
 const TABLE_OPEN_RE = /<table[^>]*class\s*=\s*["']?\s*advisory-table/si;
 
 export function parseHtmlTable(fragment: string): ParsedTable {
@@ -97,15 +99,7 @@ export function parseHtmlTable(fragment: string): ParsedTable {
     rows.push(cells);
   }
 
-  if (rows.length === 0 && !isEmptyFragment(trimmed)) {
-    // We found a table but no <tr> at all — that's a real empty state, not an error.
-    // (rotational returns this.) Treat it as zero rows.
-  }
-
-  if (rows.length === 0 && isEmptyFragment(trimmed)) {
-    // Fully empty (no rows and no meaningful content beyond the table skeleton).
-    return { headers, rows: [] };
-  }
-
+  // Zero rows with a valid header is a real empty state (rotational returns exactly this), not an
+  // error — the caller distinguishes "nothing published" from "fetch failed" via isEmptyFragment().
   return { headers, rows };
 }

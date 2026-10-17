@@ -180,8 +180,9 @@ describe('rowToPartialOutage', () => {
     expect(row.city).toBe('Quezon City');
     expect(row.specificArea).toBe('at Don Jose Street');
     expect(row.barangays).toEqual([{ name: 'Holy Spirit', confidence: 'official' }]);
-    expect(row.startsAt?.toISOString()).toBe('2026-10-14T23:00:00.000Z');
-    expect(row.endsAt?.toISOString()).toBe('2026-10-15T06:00:00.000Z');
+    // 11:00 PM Manila on Oct 15 = 15:00 UTC Oct 15; 6:00 AM Manila on Oct 16 = 22:00 UTC Oct 15.
+    expect(row.startsAt?.toISOString()).toBe('2026-10-15T15:00:00.000Z');
+    expect(row.endsAt?.toISOString()).toBe('2026-10-15T22:00:00.000Z');
     expect(row.reason).toBe('Network Repair Activity');
     expect(row.status).toBe('active');
   });
@@ -242,6 +243,24 @@ const MAKE_MOCK_RESPONSE = (
     headers: { 'content-type': contentType },
   });
 
+/**
+ * Route the mock by endpoint: emergency + scheduled serve `fragment`, rotational serves the saved
+ * empty fixture (Maynilad really does return an empty rotational table).
+ */
+function mockMayniladFetch(fragment: string) {
+  return vi.fn((input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input);
+    return Promise.resolve(
+      url.endsWith('/rotational')
+        ? new Response(rotationalRaw, {
+            status: 200,
+            headers: { 'content-type': 'application/json; charset=UTF-8' },
+          })
+        : MAKE_MOCK_RESPONSE(fragment),
+    );
+  });
+}
+
 describe('fetchMayniladOutages (mocked)', () => {
   let originalFetch: typeof globalThis.fetch;
 
@@ -259,7 +278,7 @@ describe('fetchMayniladOutages (mocked)', () => {
 <tr><td>Quezon City</td><td>Brgy. Holy Spirit</td><td>at Don Jose Street</td><td>October 15, 2026</td><td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Network Repair Activity</td></tr>
 </tbody></table>`;
 
-    globalThis.fetch = vi.fn().mockResolvedValue(MAKE_MOCK_RESPONSE(fragment));
+    globalThis.fetch = mockMayniladFetch(fragment);
     const result = await fetchMayniladOutages();
 
     expect(result.sourceErrors).toHaveLength(0);
@@ -267,11 +286,12 @@ describe('fetchMayniladOutages (mocked)', () => {
     expect(result.outages).toHaveLength(1);
     const o = result.outages[0];
     expect(o).toBeDefined();
-    expect(o!.affectedAreas).toHaveLength(1);
-    expect(o!.affectedAreas[0].barangays).toEqual([
+    if (!o) throw new Error('expected one outage');
+    expect(o.affectedAreas).toHaveLength(1);
+    expect(o.affectedAreas[0]?.barangays).toEqual([
       { name: 'Holy Spirit', city: 'Quezon City', province: 'Metro Manila', psgcCode: undefined },
     ]);
-    expect(OutageSchema.safeParse(o!).success).toBe(true);
+    expect(OutageSchema.safeParse(o).success).toBe(true);
   });
 
   test('rows that differ in reason stay separate outages', async () => {
@@ -280,7 +300,7 @@ describe('fetchMayniladOutages (mocked)', () => {
 <tr><td>Quezon City</td><td>Brgy. A</td><td>at Place A</td><td>October 15, 2026</td><td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Repair Y</td></tr>
 </tbody></table>`;
 
-    globalThis.fetch = vi.fn().mockResolvedValue(MAKE_MOCK_RESPONSE(fragment));
+    globalThis.fetch = mockMayniladFetch(fragment);
     const result = await fetchMayniladOutages();
     expect(result.outages).toHaveLength(2);
   });

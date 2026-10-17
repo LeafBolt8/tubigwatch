@@ -9,16 +9,20 @@
 //     Each returns a JSON object whose VALUE is a STRING containing an HTML <table class="advisory-table">
 //     fragment (not a JSON array of objects). See RECON.md.
 //   - Endpoints are slow (emergency ~26s, scheduled ~20s in recon). Timeout is 60s.
+//   - The wrapper carries data-page / data-max / data-next. Pagination is NOT implemented: both
+//     ?page=2 and ?next=<token> returned page 1 again in recon round 3, so we ingest page 1 only.
+//     When data-max > 1 there are rows we do not see — do not present the result as complete.
 //   - One request per second max (in-process throttle), to be polite to Maynilad's server.
 //
 // Pipeline:
 //   fetch -> parse JSON string -> extract HTML table fragment -> parseHtmlTable() ->
 //   rowToPartialOutage() -> group rows -> build Outage[] -> OutageSchema.parse() each -> return.
 //
-// Dev-mode fallback:
-//   When fetch fails (network, 403, Cloudflare, parse error on the outer JSON), fall back to the
-//   in-repo fixtures under src/lib/ingestion/__fixtures__/raw/ and return them as demo data with
-//   freshness = 'stale' and a sourceError noting "demo data".
+// Failure behaviour:
+//   A failing endpoint contributes a message to sourceErrors and is skipped; the others still run.
+//   freshness is 'unavailable' only when nothing validated AND something errored. An endpoint that
+//   answers with a real empty table (rotational) is a successful fetch with zero outages — never
+//   reported as unavailable. No fixture fallback: a network failure must not look like calm water.
 //
 // Grouping rule:
 //   Rows with identical (startsAt, endsAt, reason) collapse into ONE Outage with multiple
@@ -188,16 +192,22 @@ function groupKey(row: PartialOutageRow): string {
 function buildOutage(
   rows: PartialOutageRow[],
   type: MayniladEndpoint,
-): OutageSchemaType {
+): OutageSchemaType | null {
   // Smallest startsAt among the group = the outage startsAt.
   let startsAt: Date | null = null;
   let endsAt: Date | null = null;
+  let unanchored = false;
   const barangaySet = new Map<string, string>(); // name -> city
   const reasons = new Set<string>();
 
   for (const r of rows) {
     reasons.add(r.reason.trim());
-    if (r.startsAt && (!startsAt || r.startsAt < startsAt)) startsAt = r.startsAt;
+    if (r.startsAt) {
+      if (!startsAt || r.startsAt < startsAt) startsAt = r.startsAt;
+    } else {
+      // A row with no anchored start can't form an outage.
+      unanchored = true;
+    }
     // endsAt = latest end among the group, but only if consistent; if mixed, prefer the latest.
     if (r.endsAt) {
       if (!endsAt || r.endsAt > endsAt) endsAt = r.endsAt;
@@ -220,6 +230,10 @@ function buildOutage(
   const anyInferred = rows.some((r) => r.barangays.some((b) => b.confidence === 'inferred'));
   const confidence: OutageConfidence = anyInferred ? 'inferred' : 'official';
 
+  // If any row in the group had no parseable start, drop the whole group rather than
+  // building an outage with an unanchored start.
+  if (unanchored || !startsAt) return null;
+
   // ID
   const sortedNames = [...barangaySet.keys()].sort();
   const id = makeOutageId('maynilad', startsAt, sortedNames);
@@ -229,7 +243,7 @@ function buildOutage(
     concessionaire: 'maynilad',
     status: rows[0]?.status ?? 'unknown',
     reason,
-    startsAt: startsAt ?? undefined,
+    startsAt,
     endsAt: endsAt ?? undefined,
     estimatedRestoration: undefined,
     affectedAreas,
@@ -290,6 +304,8 @@ export async function fetchMayniladOutages(opts?: {
     // Build one outage from the group. Use the type of the first entry as the source URL context.
     const first = entries[0]!;
     const outage = buildOutage(entries.map((e) => e.row), first.type);
+    // Ungroupable rows (no anchored start) are dropped rather than guessed at.
+    if (!outage) continue;
     // Re-fetch source URL to the specific endpoint we used (best effort).
     outage.source.url = `${MAYNI_BASE}/${first.type}`;
     outage.source.fetchedAt = fetchedAt;
