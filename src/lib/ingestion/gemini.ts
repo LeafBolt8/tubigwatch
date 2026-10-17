@@ -1,4 +1,4 @@
-import { GoogleGenAI, type ToolUnion } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { GeminiOutagesJsonSchema, validateGeminiOutagesPayload } from './gemini-schema';
 import type { Outage } from '@/lib/schemas/outage';
 
@@ -10,49 +10,29 @@ export type GeminiExtractResult = {
 };
 
 export async function extractOutagesFromUrl(url: string): Promise<GeminiExtractResult> {
-  const prompt =
-    'Extract all water service interruptions from this page into the provided JSON schema. If no outages are present, return an empty array.';
-
+  const prompt = `Extract all water service interruptions from this page into the provided JSON schema. If no outages are present, return an empty array. The URL is: ${url}`;
   const model = 'gemini-3.5-flash';
 
-  const tools: ToolUnion[] = [
-    {
-      urlContext: {
-        urls: [url],
+  try {
+    const response = await GENAI.models.generateContent({
+      model,
+      contents: [prompt],
+      config: {
+        tools: [{ urlContext: {} }],
+        responseMimeType: 'application/json',
+        responseSchema: GeminiOutagesJsonSchema,
       },
-    },
-  ];
+    });
 
-  const response = await GENAI.models.generateContent({
-    model,
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { text: `Page URL: ${url}` },
-        ],
-      },
-    ],
-    config: {
-      tools,
-      responseMimeType: 'application/json',
-      responseSchema: GeminiOutagesJsonSchema,
-    },
-  });
+    const raw = response.text ?? '';
+    const parsed = validateGeminiOutagesPayload(JSON.parse(raw));
 
-  const raw = response.text ?? '';
-  const parsed = validateGeminiOutagesPayload(JSON.parse(raw));
+    if (!parsed.success) {
+      return { outages: [], error: `gemini parse failed: ${parsed.error.message}` };
+    }
 
-  if (!parsed.success) {
-    return {
-      outages: [],
-      error: `gemini parse failed: ${parsed.error.message}`,
-    };
+    return { outages: parsed.data.outages, error: null };
+  } catch (error) {
+    return { outages: [], error: error instanceof Error ? error.message : String(error) };
   }
-
-  return {
-    outages: parsed.data.outages,
-    error: null,
-  };
 }
