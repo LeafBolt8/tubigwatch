@@ -9,9 +9,17 @@
 //     Each returns a JSON object whose VALUE is a STRING containing an HTML <table class="advisory-table">
 //     fragment (not a JSON array of objects). See RECON.md.
 //   - Endpoints are slow (emergency ~26s, scheduled ~20s in recon). Timeout is 60s.
-//   - The wrapper carries data-page / data-max / data-next. Pagination is NOT implemented: both
-//     ?page=2 and ?next=<token> returned page 1 again in recon round 3, so we ingest page 1 only.
-//     When data-max > 1 there are rows we do not see — do not present the result as complete.
+//   - Pagination cursor: the homepage's own "Load More" handler sends the container's data-next as the
+//     `id` param (`var params = { city: cityFilter, id: jQuery('#emergency_sched').attr('data-next') }`)
+//     and reads `response.html` / `response.next` back, so a continuation is `?id=<data-next>` and its
+//     answer is { next, html } where html is a bare <tr> list with no <table> and no <thead>, and
+//     `next` arrives as a JSON number, not a string.
+//     `?page=` and `?next=` do nothing (recon round 3) — only `?id=<cursor>` paginates.
+//   - Pagination rules: at most MAX_PAGES pages per endpoint, a PAGE_GAP_MS pause before each cursor
+//     request, and a page whose body is byte-identical to the previous one ends the loop (data-page and
+//     data-next live inside the body, so identical bytes mean the cursor is not moving). Stopping at the
+//     cap rather than at a natural end sets `truncated` — that means rows we did not read, and the UI
+//     must not present the outage list as complete when it is set.
 //   - One request per second max (in-process throttle), to be polite to Maynilad's server.
 //
 // Pipeline:
@@ -40,6 +48,7 @@ import { OutageSchema, OutageConfidence, type Outage as OutageSchemaType } from 
 import { createHash } from 'node:crypto';
 import {
   parseHtmlTable,
+  parseHtmlRows,
   type ParsedTable,
   isEmptyFragment,
   ParseError,
@@ -53,11 +62,20 @@ type MayniladEndpoint = (typeof ENDPOINTS)[number];
 const THROTTLE_MS = 1000;
 const FETCH_TIMEOUT_MS = 60_000;
 
+/** Hard cap on pages per endpoint (page 1 included). */
+const MAX_PAGES = 5;
+/** Pause before asking for another page, so a paginated run stays gentle. */
+const PAGE_GAP_MS = 500;
+
 export type MayniladFetchResult = {
   outages: OutageSchemaType[];
   freshness: import('@/lib/schemas/freshness').DataFreshness;
   sourceErrors: string[];
   fetchedAt: Date;
+  /** Total page requests made across all endpoints (page 1 of each endpoint counts as one). */
+  pagesFetched: number;
+  /** True when an endpoint stopped because of MAX_PAGES while a cursor was still live. */
+  truncated: boolean;
 };
 
 // ---------- throttled fetch ----------
@@ -97,13 +115,14 @@ function fetchWithTimeout(
     });
 }
 
-// ---------- fetch one endpoint ----------
+// ---------- fetch one endpoint (paginated) ----------
 
-async function fetchMayniladEndpoint(
-  type: MayniladEndpoint,
-  signal?: AbortSignal,
-): Promise<{ rows: PartialOutageRow[]; header: string[] }> {
-  const url = `${MAYNI_BASE}/${type}`;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Fetch a URL through the throttle and hand back its body, refusing non-JSON answers. */
+async function fetchJsonText(url: string, signal?: AbortSignal): Promise<string> {
   const res = await throttledFetch(url, signal);
 
   if (!res.ok) {
@@ -115,12 +134,29 @@ async function fetchMayniladEndpoint(
     throw new Error(`${url} returned content-type ${res.headers.get('content-type')}, expected application/json`);
   }
 
-  let body: string;
   try {
-    body = await res.text();
+    return await res.text();
   } catch (err) {
     throw new Error(`failed to read body from ${url}: ${err}`);
   }
+}
+
+/**
+ * The pagination cursor is the wrapper's data-next attribute, so page 1's fragment already carries
+ * the cursor for page 2 — no extra request is needed to find it.
+ */
+function readDataNext(fragment: string): string {
+  const m = /data-next="([^"]*)"/.exec(fragment);
+  return m ? m[1]!.trim() : '';
+}
+
+async function fetchMayniladEndpoint(
+  type: MayniladEndpoint,
+  signal: AbortSignal | undefined,
+  maxPages: number,
+): Promise<{ rows: PartialOutageRow[]; pagesFetched: number; truncated: boolean }> {
+  const url = `${MAYNI_BASE}/${type}`;
+  const body = await fetchJsonText(url, signal);
 
   // The response is a JSON object whose value is a string containing the HTML fragment.
   // Try to extract that string. The observed shape is a top-level JSON string; defend for
@@ -144,7 +180,7 @@ async function fetchMayniladEndpoint(
   }
 
   if (isEmptyFragment(fragment)) {
-    return { rows: [], header: [] };
+    return { rows: [], pagesFetched: 1, truncated: false };
   }
 
   let table: ParsedTable;
@@ -163,7 +199,65 @@ async function fetchMayniladEndpoint(
     const row = rowToPartialOutage(cells, type, header);
     if (row) rows.push(row);
   }
-  return { rows, header };
+
+  // Follow the data-next cursor. The loop leaves a non-empty cursor behind only when it stopped at
+  // the cap, which is what `truncated` reports.
+  let cursor = readDataNext(fragment);
+  let previousBody = body;
+  let pagesFetched = 1;
+
+  while (cursor && pagesFetched < maxPages) {
+    await sleep(PAGE_GAP_MS);
+    const pageBody = await fetchJsonText(`${url}?id=${encodeURIComponent(cursor)}`, signal);
+    pagesFetched++; // the request was made, whether or not it carried anything new
+
+    // data-page and data-next live inside the body: identical bytes mean the cursor did not move,
+    // so this is the last distinct page rather than a new one.
+    if (pageBody === previousBody) {
+      cursor = '';
+      break;
+    }
+
+    let html: string | null = null;
+    let next: string | null = null;
+    try {
+      const parsed = JSON.parse(pageBody) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const obj = parsed as Record<string, unknown>;
+        if (typeof obj.html === 'string') html = obj.html;
+        // The live endpoint sends `next` as a JSON number (48801), not a string — the site's own
+        // handler passes it straight to jQuery.attr(), which stringifies. Accept both.
+        if (typeof obj.next === 'string' || typeof obj.next === 'number') next = String(obj.next);
+      }
+    } catch {
+      throw new Error(`failed to parse JSON from ${url}?id=${cursor}`);
+    }
+
+    if (html === null) {
+      throw new Error(`cursor response from ${url}?id=${cursor} had no html rows`);
+    }
+
+    let pageRows: string[][];
+    try {
+      pageRows = parseHtmlRows(html, header);
+    } catch (err) {
+      if (err instanceof ParseError) {
+        throw new Error(`parse error on ${url}?id=${cursor}: ${err.message}`);
+      }
+      throw err;
+    }
+
+    for (const cells of pageRows) {
+      const row = rowToPartialOutage(cells, type, header);
+      if (row) rows.push(row);
+    }
+
+    previousBody = pageBody;
+    const advanced = next ?? '';
+    cursor = advanced === cursor ? '' : advanced;
+  }
+
+  return { rows, pagesFetched, truncated: cursor !== '' };
 }
 
 function findHtmlFragmentValue(obj: Record<string, unknown>): string | null {
@@ -271,15 +365,22 @@ function makeOutageId(
 export async function fetchMayniladOutages(opts?: {
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Page cap per endpoint; defaults to MAX_PAGES. Mainly for bounded smoke runs. */
+  maxPages?: number;
 }): Promise<MayniladFetchResult> {
   const fetchedAt = new Date();
   const sourceErrors: string[] = [];
   const allRows: Array<{ row: PartialOutageRow; type: MayniladEndpoint }> = [];
+  const maxPages = Math.max(1, opts?.maxPages ?? MAX_PAGES);
+  let pagesFetched = 0;
+  let truncated = false;
 
   for (const type of ENDPOINTS) {
     try {
-      const { rows } = await fetchMayniladEndpoint(type, opts?.signal);
-      for (const row of rows) {
+      const page = await fetchMayniladEndpoint(type, opts?.signal, maxPages);
+      pagesFetched += page.pagesFetched;
+      if (page.truncated) truncated = true;
+      for (const row of page.rows) {
         allRows.push({ row, type });
       }
     } catch (err) {
@@ -328,5 +429,5 @@ export async function fetchMayniladOutages(opts?: {
   const freshness =
     validated.length === 0 && sourceErrors.length > 0 ? 'unavailable' : 'fresh';
 
-  return { outages: validated, freshness, sourceErrors, fetchedAt };
+  return { outages: validated, freshness, sourceErrors, fetchedAt, pagesFetched, truncated };
 }

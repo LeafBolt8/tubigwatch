@@ -78,10 +78,32 @@ export function parseHtmlTable(fragment: string): ParsedTable {
     throw new ParseError('no <th> headers found in fragment', fragment);
   }
 
-  // Rows: each <tr> contains one or more <td>.
+  const rows = collectRows(trimmed, headers, fragment);
+
+  // Zero rows with a valid header is a real empty state (rotational returns exactly this), not an
+  // error — the caller distinguishes "nothing published" from "fetch failed" via isEmptyFragment().
+  return { headers, rows };
+}
+
+/**
+ * Rows-only variant for pagination continuations.
+ *
+ * When Maynilad is asked for a cursor (`?id=<data-next>`) it answers with `{ next, html }` where
+ * `html` is the bare `<tr>` list — no `<table>` wrapper and no `<thead>`. The column set is the
+ * one page 1 already established, so the caller passes those headers in and cell counts are
+ * checked against them the same way parseHtmlTable() does.
+ */
+export function parseHtmlRows(html: string, headers: string[]): string[][] {
+  if (!html.trim()) throw new ParseError('empty row fragment', html);
+  return collectRows(html, headers, html);
+}
+
+/** Shared row walk: each <tr> holds one or more <td>, entities decoded, cells trimmed. */
+function collectRows(source: string, headers: string[], raw: string): string[][] {
   const rows: string[][] = [];
   let rowIndex = 0;
-  while ((m = TR_RE.exec(trimmed)) !== null) {
+  let m: RegExpExecArray | null;
+  while ((m = TR_RE.exec(source)) !== null) {
     rowIndex++;
     const tr = m[0];
     const cells: string[] = [];
@@ -93,13 +115,10 @@ export function parseHtmlTable(fragment: string): ParsedTable {
     if (cells.length !== headers.length) {
       throw new ParseError(
         `row ${rowIndex} has ${cells.length} cells, expected ${headers.length}`,
-        fragment,
+        raw,
       );
     }
     rows.push(cells);
   }
-
-  // Zero rows with a valid header is a real empty state (rotational returns exactly this), not an
-  // error — the caller distinguishes "nothing published" from "fetch failed" via isEmptyFragment().
-  return { headers, rows };
+  return rows;
 }

@@ -305,6 +305,65 @@ describe('fetchMayniladOutages (mocked)', () => {
     expect(result.outages).toHaveLength(2);
   });
 
+  test('follows data-next as ?id=, adds page 2, and stops when page 3 repeats it', async () => {
+    // Page 1 carries the cursor in its wrapper, exactly as the live endpoint does.
+    const pageOne =
+      '<div id="emergency_sched" class="table-container" data-page="1" data-max="9" data-next="111">' +
+      '<table class="advisory-table"><thead><tr><th>City</th><th>Barangay</th><th>Specific Area</th>' +
+      '<th>From</th><th>To</th><th>Time</th><th>Reason</th></tr></thead><tbody>' +
+      '<tr><td>Quezon City</td><td>Brgy. One</td><td>at One</td><td>October 15, 2026</td>' +
+      '<td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Repair One</td></tr>' +
+      '</tbody></table></div>';
+
+    // A cursor response is { next, html } with a bare <tr> list — no <table>, no <thead> — and the
+    // live endpoint sends `next` as a number, so the mock does too.
+    const pageTwo = JSON.stringify({
+      next: 222,
+      html:
+        '<tr><td>Quezon City</td><td>Brgy. Two</td><td>at Two</td><td>October 16, 2026</td>' +
+        '<td>October 17, 2026</td><td>10:00 PM to 6:00 AM</td><td>Repair Two</td></tr>' +
+        '<tr><td>Quezon City</td><td>Brgy. Three</td><td>at Three</td><td>October 16, 2026</td>' +
+        '<td>October 17, 2026</td><td>10:00 PM to 6:00 AM</td><td>Repair Three</td></tr>',
+    });
+
+    const requested: string[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      requested.push(url);
+      const ok = {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=UTF-8' },
+      };
+      if (url.endsWith('/emergency')) return Promise.resolve(new Response(JSON.stringify(pageOne), ok));
+      // Page 3 is byte-identical to page 2, so the loop must stop there. Cursor responses are
+      // already JSON text ({ next, html }), so they are not stringified a second time.
+      if (url.includes('/emergency?id=')) return Promise.resolve(new Response(pageTwo, ok));
+      return Promise.resolve(
+        new Response(rotationalRaw, {
+          status: 200,
+          headers: { 'content-type': 'application/json; charset=UTF-8' },
+        }),
+      );
+    });
+
+    const result = await fetchMayniladOutages();
+
+    expect(result.sourceErrors).toEqual([]);
+    expect(result.outages.map((o) => o.reason).sort()).toEqual([
+      'Repair One',
+      'Repair Three',
+      'Repair Two',
+    ]);
+    expect(result.pagesFetched).toBe(5); // emergency 3 (page 1, ?id=111, ?id=222) + other two
+    expect(result.truncated).toBe(false);
+    expect(requested.filter((u) => u.includes('/emergency'))).toEqual([
+      expect.stringContaining('/emergency'),
+      expect.stringContaining('/emergency?id=111'),
+      expect.stringContaining('/emergency?id=222'),
+    ]);
+    // Five requests at the 1s politeness throttle plus two 500ms cursor gaps outlast the default.
+  }, 15_000);
+
   test('all endpoints failing yields freshness unavailable + sourceErrors', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await fetchMayniladOutages();
