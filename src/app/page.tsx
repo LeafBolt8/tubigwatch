@@ -225,6 +225,9 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
           {outages.map((outage) => {
             const status = computeStatus(outage, now);
             const badge = displayBadgeValue(status);
+            const cities = Array.from(new Set(outage.affectedAreas.flatMap((a) => a.barangays.map((b) => b.city))));
+            const citiesLine = cities.length > 0 ? cities.join(', ') : '';
+            const barangays = Array.from(new Set(outage.affectedAreas.flatMap((a) => a.barangays.map((b) => b.name))));
             return (
               <li key={outage.id} className="rounded border border-zinc-200 bg-white p-4 shadow-sm">
                 <article className="flex flex-col gap-2">
@@ -233,11 +236,22 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                       {badge}
                     </span>
                     <span className="text-sm text-zinc-600">{areaLabel(outage)}</span>
-                    <span className="sr-only" data-testid="barangay-name">{outage.affectedAreas[0]?.barangays[0]?.name ?? ''}</span>
                   </div>
                   {outage.reason && <p className="text-sm text-zinc-600">{outage.reason}</p>}
-                  <div>
-                    {JSON.stringify(outage.affectedAreas)}
+                  <div className="text-sm text-zinc-700 mt-2 space-y-1">
+                    {cities.length > 0 && (
+                      <p className="mt-1"><strong className="text-zinc-900">City:</strong> {citiesLine}</p>
+                    )}
+                    {barangays.length > 0 && (
+                      <p className="mt-1">
+                        <strong className="text-zinc-900">Areas:</strong>{' '}
+                        {barangays.slice(0, 3).map(b => `Brgy. ${b}`).join(', ')}
+                        {barangays.length > 3 && ` (+${barangays.length - 3} more)`}
+                      </p>
+                    )}
+                    {barangays.length === 0 && cities.length === 0 && (
+                      <p className="mt-1 text-zinc-500">Location details unavailable</p>
+                    )}
                   </div>
                   <dl className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-700">
                     <div className="flex gap-x-2">
