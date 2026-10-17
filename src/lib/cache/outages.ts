@@ -59,6 +59,11 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
+export type GeminiCachedOutagesResult = {
+  outages: Outage[];
+  errors: string[];
+};
+
 export const getCachedGeminiOutages = unstable_cache(
   async () => {
     const maynilad = await extractOutagesFromUrl(MAYNI_URL);
@@ -69,7 +74,11 @@ export const getCachedGeminiOutages = unstable_cache(
       ...manilaWater.outages,
     ]);
 
-    return merged;
+    const errors: string[] = [];
+    if (maynilad.error) errors.push(`maynilad: ${maynilad.error}`);
+    if (manilaWater.error) errors.push(`manila-water: ${manilaWater.error}`);
+
+    return { outages: merged, errors };
   },
   ['gemini-outages'],
   { revalidate: 3600, tags: ['gemini-outages'] },

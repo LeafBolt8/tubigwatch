@@ -169,14 +169,17 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       truncated: false,
     };
   } else {
-    const outages = await getCachedGeminiOutages();
+    const gemini = await getCachedGeminiOutages();
     const sourceErrors: Array<string> = [];
+    for (const err of gemini.errors) {
+      sourceErrors.push(err);
+    }
     if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
       sourceErrors.push('Gemini API key not configured — AI extraction is unavailable');
     }
     pageData = {
       mode: 'live',
-      outages,
+      outages: gemini.outages,
       freshness: 'fresh',
       sourceErrors,
       truncated: false,

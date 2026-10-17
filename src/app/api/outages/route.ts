@@ -56,16 +56,19 @@ export async function GET(request: NextRequest) {
 
   // -- Gemini-extracted path (for Cloudflare-protected sources) --
   if (searchParams.has('source') && searchParams.get('source') === 'gemini') {
-    const outages = await getCachedGeminiOutages();
+    const gemini = await getCachedGeminiOutages();
 
     const sourceErrors: string[] = [];
+    for (const err of gemini.errors) {
+      sourceErrors.push(err);
+    }
     if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
       sourceErrors.push('GEMINI_API_KEY not set — Gemini path is not configured');
     }
 
     return NextResponse.json(
       {
-        outages,
+        outages: gemini.outages,
         freshness: 'fresh' as const,
         fetchedAt: new Date().toISOString(),
         sourceErrors: sourceErrors.length > 0 ? sourceErrors : [],

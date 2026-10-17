@@ -51,6 +51,7 @@ IMPORTANT: The \`affectedAreas\` field must be an array. Each barangay must be a
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Gemini Extraction Failed] ${url}:`, message);
 
       if (
         attempt < 3 &&
