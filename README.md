@@ -23,15 +23,3 @@ Every change must pass:
 ## Docs
 
 See `ARCHITECTURE.md`, `knowledge.md`, `AGENTS.md`.
-
-
-Every change must pass:
-- `npm run typecheck` — TypeScript strict
-- `npm run lint` — ESLint + anti-slop guardrail
-- `npm test` — Vitest + guardrail tests
-- `npm run build` — Next.js production build
-- `npm run e2e` — Playwright (UI-affecting changes only)
-
-## Docs
-
-See `ARCHITECTURE.md`, `knowledge.md`, `AGENTS.md`.
