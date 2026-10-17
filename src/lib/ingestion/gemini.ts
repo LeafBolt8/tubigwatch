@@ -1,5 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
-import { GeminiOutagesJsonSchema, validateGeminiOutagesPayload } from './gemini-schema';
+import {
+  GeminiOutagesJsonSchema,
+  validateGeminiRawPayload,
+  hydrateGeminiOutages,
+} from './gemini-schema';
 import type { Outage } from '@/lib/schemas/outage';
 
 const GENAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -25,13 +29,21 @@ export async function extractOutagesFromUrl(url: string): Promise<GeminiExtractR
     });
 
     const raw = response.text ?? '';
-    const parsed = validateGeminiOutagesPayload(JSON.parse(raw));
+    const parsed = validateGeminiRawPayload(JSON.parse(raw));
 
     if (!parsed.success) {
       return { outages: [], error: `gemini parse failed: ${parsed.error.message}` };
     }
 
-    return { outages: parsed.data.outages, error: null };
+    const fetchedAt = new Date();
+    const hydrated = hydrateGeminiOutages(parsed.data, url, fetchedAt);
+
+    return {
+      outages: hydrated.filter((o): o is Outage => o !== null),
+      error: hydrated.some((o) => o === null)
+        ? `gemini hydration skipped ${hydrated.filter((o) => o === null).length} row(s)`
+        : null,
+    };
   } catch (error) {
     return { outages: [], error: error instanceof Error ? error.message : String(error) };
   }
