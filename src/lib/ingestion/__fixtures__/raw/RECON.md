@@ -157,8 +157,32 @@ Live 2-page verification (2026-10-17): cap 1 page → 8 outages, `pagesFetched=3
 pages → 13 outages, `pagesFetched=5`, `truncated=true`, 7 ids added by page 2, 6 ids seen on both pages
 collapsing into the same outage, 0 duplicate ids.
 
+## Round 5 — full default cap, live (2026-10-17)
+
+`fetchMayniladOutages()` with defaults (MAX_PAGES = 5), one run, 9 requests, 143.5 s:
+
+```
+emergency: pagesFetched=4 rowsCollected=19 outagesBuilt=7  stoppedReason="data-max-reached" dataMax=4 elapsedMs=70989
+scheduled: pagesFetched=4 rowsCollected=20 outagesBuilt=14 stoppedReason="data-max-reached" dataMax=4 elapsedMs=71536
+rotational: pagesFetched=1 rowsCollected=0 outagesBuilt=0  stoppedReason="data-max-reached" dataMax=0 elapsedMs=986
+chains: emergency page1→48788→48801→48806 | scheduled page1→48370→48733→48746 | rotational page1
+outages=21 pagesFetched=9 truncated=false sourceErrors=[] official=10 inferred=11 duplicate_ids=0 freshness=fresh
+```
+
+**What the first full-cap run exposed (now fixed).** The loop was cursor-driven only, so it asked for a page
+beyond `data-max="4"`; that request returned an empty `<tr>` body, `parseHtmlRows` threw, and the endpoint was
+recorded as `fetch-error` with **`rowsCollected: 0` — four pages of real rows discarded** and a final
+`outages=0, freshness=unavailable`. Two defects, both mine, both fixed:
+
+1. Stop at `data-max` (the rule the site uses to hide its own Load More button) — never request past it.
+2. An empty continuation body is the end of the data, not a parse failure: stop and keep every row already read.
+
+Regression test: "an empty cursor page ends the chain and keeps the rows already read" in `tests/unit/maynilad.test.ts`.
+Cursors observed across both full runs were monotonic and unique; no duplicate ids across pages
+(rows that repeat collapse into the same group, which is the id invariant holding).
+
 Follow-ups still open (NOT done):
-1. `/emergency` reports `data-max="4"` pages; a default (cap 5) live run has not been executed end to end —
-   the cap and byte-identical stop are covered by `tests/unit/maynilad.test.ts`, not by a live run.
+1. Cap is 5 pages and `data-max` is 4–6 depending on the day, so the cap is not yet the binding constraint —
+   but nothing stops `data-max` from exceeding 5, and `truncated` is how that would surface.
 2. Confirm whether Maynilad's `/service-advisories/` and `/service-advisories-2/` pages are server-rendered static HTML or also rely on the REST fragments.
 3. Decide the Manila Water path: Playwright fetch of one subpage vs fixtures-only.

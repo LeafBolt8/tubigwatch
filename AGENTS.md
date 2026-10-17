@@ -52,6 +52,7 @@ npm test
 ```
 
 - **Do not claim a gate passed when it did not run.** If a gate cannot run (e.g. no `package.json` yet), say so explicitly and state why.
+- `npm test` runs both the app tests (Vitest) and the guardrail's own tests (`node --test "scripts/*.test.mjs"`); a broken guardrail now fails CI.
 - A green build/exit code is **not** proof of the requested behavior. Verify the artifact through the interface the user actually uses (run it, click it through, check the console).
 - Fix the **cause** of a failing gate. Never skip tests, weaken assertions, swallow errors, or add type/lint suppressions just to make a check go green.
 - For any UI change, also run the tooled anti-slop guardrail and fix what it reports (or document a deliberate exception with a written reason): `node scripts/check-antislop.mjs`.

@@ -11,7 +11,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/check-antislop.mjs",
-    "test": "vitest run",
+    "test": "vitest run && node --test \"scripts/*.test.mjs\"",
     "test:watch": "vitest",
     "e2e": "playwright test",
     "antislop": "node scripts/check-antislop.mjs"

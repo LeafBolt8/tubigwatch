@@ -364,6 +364,83 @@ describe('fetchMayniladOutages (mocked)', () => {
     // Five requests at the 1s politeness throttle plus two 500ms cursor gaps outlast the default.
   }, 15_000);
 
+  test('an empty cursor page ends the chain and keeps the rows already read', async () => {
+    // Seen live on the request past data-max: an empty <tr> body is the end of the data, not a parse
+    // failure. Treating it as fatal used to throw away every row collected before it.
+    const pageOne =
+      '<div id="emergency_sched" class="table-container" data-page="1" data-max="9" data-next="111">' +
+      '<table class="advisory-table"><thead><tr><th>City</th><th>Barangay</th><th>Specific Area</th>' +
+      '<th>From</th><th>To</th><th>Time</th><th>Reason</th></tr></thead><tbody>' +
+      '<tr><td>Quezon City</td><td>Brgy. One</td><td>at One</td><td>October 15, 2026</td>' +
+      '<td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Repair One</td></tr>' +
+      '</tbody></table></div>';
+
+    const requested: string[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      requested.push(url);
+      const ok = { status: 200, headers: { 'content-type': 'application/json; charset=UTF-8' } };
+      if (url.endsWith('/emergency')) return Promise.resolve(new Response(JSON.stringify(pageOne), ok));
+      if (url.includes('/emergency?id=')) {
+        return Promise.resolve(new Response(JSON.stringify({ next: 222, html: '' }), ok));
+      }
+      return Promise.resolve(new Response(rotationalRaw, ok));
+    });
+
+    const result = await fetchMayniladOutages();
+
+    expect(result.sourceErrors).toEqual([]);
+    expect(result.outages.map((o) => o.reason)).toEqual(['Repair One']);
+    expect(result.endpoints[0]?.stoppedReason).toBe('data-max-reached');
+    expect(result.endpoints[0]?.rowsCollected).toBe(1);
+    expect(result.endpoints[0]?.pagesFetched).toBe(2);
+    expect(result.truncated).toBe(false);
+    expect(requested.filter((u) => u.includes('/emergency'))).toHaveLength(2);
+  }, 15_000);
+
+  test('hitting the page cap stops with a live cursor and reports truncated', async () => {
+    // The mirror image of the previous test: the chain keeps moving, so the cap is what stops us and
+    // the result has to say so — a capped read is not a complete one.
+    const pageOne =
+      '<div id="emergency_sched" class="table-container" data-page="1" data-max="9" data-next="111">' +
+      '<table class="advisory-table"><thead><tr><th>City</th><th>Barangay</th><th>Specific Area</th>' +
+      '<th>From</th><th>To</th><th>Time</th><th>Reason</th></tr></thead><tbody>' +
+      '<tr><td>Quezon City</td><td>Brgy. One</td><td>at One</td><td>October 15, 2026</td>' +
+      '<td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Repair One</td></tr>' +
+      '</tbody></table></div>';
+
+    const pageTwo = JSON.stringify({
+      next: 222,
+      html:
+        '<tr><td>Quezon City</td><td>Brgy. Two</td><td>at Two</td><td>October 16, 2026</td>' +
+        '<td>October 17, 2026</td><td>10:00 PM to 6:00 AM</td><td>Repair Two</td></tr>',
+    });
+
+    const requested: string[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      requested.push(url);
+      const ok = { status: 200, headers: { 'content-type': 'application/json; charset=UTF-8' } };
+      if (url.endsWith('/emergency')) return Promise.resolve(new Response(JSON.stringify(pageOne), ok));
+      // Only ?id=111 may be asked for: maxPages is 2, so page 1 + this page is all we are allowed.
+      if (url.endsWith('/emergency?id=111')) {
+        return Promise.resolve(new Response(pageTwo, ok));
+      }
+      if (url.includes('/emergency?id=')) {
+        throw new Error(`requested past the cap: ${url}`);
+      }
+      return Promise.resolve(new Response(rotationalRaw, ok));
+    });
+
+    const result = await fetchMayniladOutages({ maxPages: 2 });
+
+    expect(result.truncated).toBe(true);
+    expect(result.endpoints[0]?.stoppedReason).toBe('cap-hit');
+    expect(result.endpoints[0]?.pagesFetched).toBe(2);
+    expect(result.outages.map((o) => o.reason).sort()).toEqual(['Repair One', 'Repair Two']);
+    expect(requested.filter((u) => u.includes('/emergency'))).toHaveLength(2);
+  }, 15_000);
+
   test('all endpoints failing yields freshness unavailable + sourceErrors', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await fetchMayniladOutages();

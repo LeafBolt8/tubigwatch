@@ -20,6 +20,11 @@
 //     data-next live inside the body, so identical bytes mean the cursor is not moving). Stopping at the
 //     cap rather than at a natural end sets `truncated` — that means rows we did not read, and the UI
 //     must not present the outage list as complete when it is set.
+//   - Every result carries per-endpoint counters (`endpoints`), including a `stoppedReason` so a
+//     capped read is distinguishable from a finished one: 'byte-identical' (a page repeated the
+//     previous body), 'data-max-reached' (the server handed back no new cursor — what reaching the
+//     last advertised page looks like on the wire, and also what an endpoint with no cursor at all
+//     reports), 'cap-hit' (a live cursor was left unread at MAX_PAGES) or 'fetch-error'.
 //   - One request per second max (in-process throttle), to be polite to Maynilad's server.
 //
 // Pipeline:
@@ -76,6 +81,8 @@ export type MayniladFetchResult = {
   pagesFetched: number;
   /** True when an endpoint stopped because of MAX_PAGES while a cursor was still live. */
   truncated: boolean;
+  /** Per-endpoint counters, in ENDPOINTS order — one entry per endpoint, errored ones included. */
+  endpoints: MayniladEndpointStats[];
 };
 
 // ---------- throttled fetch ----------
@@ -150,13 +157,80 @@ function readDataNext(fragment: string): string {
   return m ? m[1]!.trim() : '';
 }
 
+/** The wrapper's data-max attribute: how many pages the endpoint advertises in total. */
+function readDataMax(fragment: string): number | null {
+  const m = /data-max="(\d+)"/.exec(fragment);
+  return m ? Number.parseInt(m[1]!, 10) : null;
+}
+
+/** The wrapper's data-page attribute: which page this fragment is, counting from 1. */
+function readDataPage(fragment: string): number {
+  const m = /data-page="(\d+)"/.exec(fragment);
+  return m ? Number.parseInt(m[1]!, 10) : 1;
+}
+
+/** Why an endpoint stopped. 'fetch-error' is set by the caller of the endpoint fetch. */
+export type MayniladStopReason = 'byte-identical' | 'data-max-reached' | 'cap-hit' | 'fetch-error';
+
+/** Per-endpoint counters, so a caller can tell a complete read from a capped one. */
+export type MayniladEndpointStats = {
+  endpoint: MayniladEndpoint;
+  pagesFetched: number;
+  rowsCollected: number;
+  /**
+   * Outages in the returned list whose group holds at least one row from this endpoint. Two
+   * endpoints can share a group, so these can sum to more than `outages.length`.
+   */
+  outagesBuilt: number;
+  stoppedReason: MayniladStopReason;
+  /** data-max from page 1 (advertised page count), or null when the wrapper did not carry it. */
+  dataMax: number | null;
+  elapsedMs: number;
+};
+
+type EndpointStatsCore = Pick<
+  MayniladEndpointStats,
+  'pagesFetched' | 'dataMax' | 'stoppedReason'
+>;
+
+/** The endpoint fetch reports failures as data instead of throwing, so its progress survives them. */
+type EndpointOutcome =
+  | { ok: true; rows: PartialOutageRow[]; stats: EndpointStatsCore }
+  | { ok: false; error: string; stats: EndpointStatsCore };
+
 async function fetchMayniladEndpoint(
   type: MayniladEndpoint,
   signal: AbortSignal | undefined,
   maxPages: number,
-): Promise<{ rows: PartialOutageRow[]; pagesFetched: number; truncated: boolean }> {
+): Promise<EndpointOutcome> {
   const url = `${MAYNI_BASE}/${type}`;
+  const progress: EndpointStatsCore = {
+    pagesFetched: 0,
+    dataMax: null,
+    // Covers page 1 offering no cursor at all: the endpoint advertises nothing further.
+    stoppedReason: 'data-max-reached',
+  };
+
+  try {
+    return await fetchMayniladEndpointPages(type, url, signal, maxPages, progress);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+      stats: { ...progress, stoppedReason: 'fetch-error' },
+    };
+  }
+}
+
+async function fetchMayniladEndpointPages(
+  type: MayniladEndpoint,
+  url: string,
+  signal: AbortSignal | undefined,
+  maxPages: number,
+  progress: EndpointStatsCore,
+): Promise<EndpointOutcome> {
   const body = await fetchJsonText(url, signal);
+  progress.pagesFetched++;
 
   // The response is a JSON object whose value is a string containing the HTML fragment.
   // Try to extract that string. The observed shape is a top-level JSON string; defend for
@@ -179,8 +253,10 @@ async function fetchMayniladEndpoint(
     throw new Error(`no HTML fragment found in response from ${url}`);
   }
 
+  progress.dataMax = readDataMax(fragment);
+
   if (isEmptyFragment(fragment)) {
-    return { rows: [], pagesFetched: 1, truncated: false };
+    return { ok: true, rows: [], stats: { ...progress } };
   }
 
   let table: ParsedTable;
@@ -204,17 +280,27 @@ async function fetchMayniladEndpoint(
   // the cap, which is what `truncated` reports.
   let cursor = readDataNext(fragment);
   let previousBody = body;
-  let pagesFetched = 1;
+  let pageIndex = readDataPage(fragment);
+  // True once the chain ended on its own terms, so a leftover cursor cannot be mistaken for a cap stop.
+  let ended = false;
 
-  while (cursor && pagesFetched < maxPages) {
+  while (cursor && progress.pagesFetched < maxPages) {
+    if (progress.dataMax !== null && pageIndex >= progress.dataMax) {
+      // The same rule the site uses to hide its own Load More button: nothing left to ask for.
+      progress.stoppedReason = 'data-max-reached';
+      ended = true;
+      break;
+    }
+
     await sleep(PAGE_GAP_MS);
     const pageBody = await fetchJsonText(`${url}?id=${encodeURIComponent(cursor)}`, signal);
-    pagesFetched++; // the request was made, whether or not it carried anything new
+    progress.pagesFetched++; // the request was made, whether or not it carried anything new
 
     // data-page and data-next live inside the body: identical bytes mean the cursor did not move,
     // so this is the last distinct page rather than a new one.
     if (pageBody === previousBody) {
-      cursor = '';
+      progress.stoppedReason = 'byte-identical';
+      ended = true;
       break;
     }
 
@@ -237,6 +323,15 @@ async function fetchMayniladEndpoint(
       throw new Error(`cursor response from ${url}?id=${cursor} had no html rows`);
     }
 
+    if (html.trim() === '') {
+      // An empty row list means the server had nothing more for this cursor. That is the end of the
+      // chain, not a parse failure: stopping here keeps every row already read. (Seen live on the
+      // request past data-max; the data-max check above normally prevents asking at all.)
+      progress.stoppedReason = 'data-max-reached';
+      ended = true;
+      break;
+    }
+
     let pageRows: string[][];
     try {
       pageRows = parseHtmlRows(html, header);
@@ -253,11 +348,21 @@ async function fetchMayniladEndpoint(
     }
 
     previousBody = pageBody;
+    pageIndex++;
     const advanced = next ?? '';
-    cursor = advanced === cursor ? '' : advanced;
+    if (advanced === '' || advanced === cursor) {
+      // No new cursor: the server says this was the last page.
+      progress.stoppedReason = 'data-max-reached';
+      ended = true;
+      break;
+    }
+    cursor = advanced;
   }
 
-  return { rows, pagesFetched, truncated: cursor !== '' };
+  // A cursor still in hand after a stop that was not the chain's own end means the cap stopped us.
+  if (!ended && cursor !== '') progress.stoppedReason = 'cap-hit';
+
+  return { ok: true, rows, stats: { ...progress } };
 }
 
 function findHtmlFragmentValue(obj: Record<string, unknown>): string | null {
@@ -374,18 +479,24 @@ export async function fetchMayniladOutages(opts?: {
   const maxPages = Math.max(1, opts?.maxPages ?? MAX_PAGES);
   let pagesFetched = 0;
   let truncated = false;
+  const endpoints: MayniladEndpointStats[] = [];
 
   for (const type of ENDPOINTS) {
-    try {
-      const page = await fetchMayniladEndpoint(type, opts?.signal, maxPages);
-      pagesFetched += page.pagesFetched;
-      if (page.truncated) truncated = true;
-      for (const row of page.rows) {
-        allRows.push({ row, type });
-      }
-    } catch (err) {
-      sourceErrors.push(`${type}: ${err instanceof Error ? err.message : String(err)}`);
+    const startedAt = Date.now();
+    const outcome = await fetchMayniladEndpoint(type, opts?.signal, maxPages);
+    pagesFetched += outcome.stats.pagesFetched;
+    if (outcome.stats.stoppedReason === 'cap-hit') truncated = true;
+    if (!outcome.ok) sourceErrors.push(`${type}: ${outcome.error}`);
+    for (const row of outcome.ok ? outcome.rows : []) {
+      allRows.push({ row, type });
     }
+    endpoints.push({
+      endpoint: type,
+      rowsCollected: outcome.ok ? outcome.rows.length : 0,
+      outagesBuilt: 0, // filled in once the groups are validated
+      elapsedMs: Date.now() - startedAt,
+      ...outcome.stats,
+    });
   }
 
   // Group rows by (startsAt, endsAt, reason) and build one Outage per group.
@@ -401,6 +512,7 @@ export async function fetchMayniladOutages(opts?: {
   }
 
   const outages: OutageSchemaType[] = [];
+  const outageOrigins: MayniladEndpoint[][] = [];
   for (const entries of groups.values()) {
     // Build one outage from the group. Use the type of the first entry as the source URL context.
     const first = entries[0]!;
@@ -411,23 +523,39 @@ export async function fetchMayniladOutages(opts?: {
     outage.source.url = `${MAYNI_BASE}/${first.type}`;
     outage.source.fetchedAt = fetchedAt;
     outages.push(outage);
+    outageOrigins.push([...new Set(entries.map((e) => e.type))]);
   }
 
   // Validate every built outage through the schema. A failing outage is dropped (logged to
   // sourceErrors) rather than failing the whole fetch.
   const validated: OutageSchemaType[] = [];
-  for (const o of outages) {
-    const result = OutageSchema.safeParse(o);
+  const validatedOrigins: MayniladEndpoint[][] = [];
+  for (let i = 0; i < outages.length; i++) {
+    const result = OutageSchema.safeParse(outages[i]);
     if (result.success) {
       validated.push(result.data);
+      validatedOrigins.push(outageOrigins[i]!);
     } else {
       sourceErrors.push(`outage validation failed: ${JSON.stringify(result.error.issues)}`);
     }
+  }
+
+  // Attribute each surviving outage back to every endpoint that fed its group.
+  for (const stats of endpoints) {
+    stats.outagesBuilt = validatedOrigins.filter((types) => types.includes(stats.endpoint)).length;
   }
 
   // Freshness: 'unavailable' only if ALL endpoints failed.
   const freshness =
     validated.length === 0 && sourceErrors.length > 0 ? 'unavailable' : 'fresh';
 
-  return { outages: validated, freshness, sourceErrors, fetchedAt, pagesFetched, truncated };
+  return {
+    outages: validated,
+    freshness,
+    sourceErrors,
+    fetchedAt,
+    pagesFetched,
+    truncated,
+    endpoints,
+  };
 }
