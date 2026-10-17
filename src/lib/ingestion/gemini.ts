@@ -15,7 +15,9 @@ export type GeminiExtractResult = {
 };
 
 export async function extractOutagesFromUrl(url: string): Promise<GeminiExtractResult> {
-  const prompt = `Extract all water service interruptions from this page into the provided JSON schema. If no outages are present, return an empty array. The URL is: ${url}`;
+  const prompt = `Extract all water service interruptions from this page into the provided JSON schema. If no outages are present, return an empty array. The URL is: ${url}
+
+IMPORTANT: The \`affectedAreas\` field must be an array. Each barangay must be a separate object in the \`barangays\` array. If the website says 'Brgys. 36, 162 and 164', split them into 3 separate barangay objects (e.g., '36', '162', '164'). If it says 'Brgys. 198 to 220', expand the range into individual barangays (e.g., '198', '199', '200'). If a specific city is not mentioned, infer it from context.`;
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

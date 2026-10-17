@@ -4,6 +4,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 
 export const maxDuration = 300;
+const DEV = process.env.NODE_ENV !== 'production';
 
 type Mode = 'live' | 'fixtures';
 
@@ -59,29 +60,35 @@ function badgeClasses(status: OutageStatus): string {
 // we render those records through their textual shape only where a reason/area string is available,
 // rather than reaching into undocumented inner keys.
 function areaLabel(outage: Outage): string {
-  const parts: Array<string> = [];
-  if (outage.city) parts.push(outage.city);
-
   const areas = outage.affectedAreas;
-  if (areas.length > 0) {
-    // Render affected-area records through the surface the schema exposes; if a record carries a
-    // readable note/area string use it, otherwise fall back to the barangay count.
-    const detail = areas[0];
-    const note =
-      (typeof detail === 'object' && detail !== null
-        ? 'notes' in detail
-          ? detail.notes
-          : undefined
-        : undefined) ?? null;
-    if (note) {
-      parts.push(String(note));
-    } else {
-      parts.push(`${areas.length} area${areas.length === 1 ? '' : 's'}`);
+  if (areas.length === 0) return 'Location details unavailable';
+
+  const allCities = new Set<string>();
+  const allBarangays: Array<string> = [];
+  let firstNote: string | undefined;
+
+  for (const area of areas) {
+    for (const barangay of area.barangays) {
+      allCities.add(barangay.city);
+      allBarangays.push(`Brgy. ${barangay.name}`);
+    }
+    if (firstNote === undefined && area.notes) {
+      firstNote = area.notes;
     }
   }
 
-  if (parts.length === 0) return 'Unassigned area';
-  return parts.join(' · ');
+  const cities = Array.from(allCities).join(', ');
+  const shownCount = 3;
+  const visible = allBarangays.slice(0, shownCount);
+  const remaining = allBarangays.length - shownCount;
+  if (visible.length === 0) return 'Location details unavailable';
+  const areasLine =
+    visible.length === 1
+      ? visible[0]
+      : `${visible.slice(0, -1).join(', ')} and ${visible[visible.length - 1]}` +
+        (remaining > 0 ? `, +${remaining} more` : '');
+
+  return `**City:** ${cities}\n**Areas:** ${areasLine}`;
 }
 
 // now is used so localTime is always UTC-safe at display time even when the same Date is passed
@@ -147,6 +154,17 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       outages: outageFixtures,
       freshness: 'fresh',
       sourceErrors: ['fixtures mode — not live data'],
+      truncated: false,
+    };
+  } else if (DEV && process.env.GEMINI_API_KEY === undefined) {
+    // In dev without a real key, fall back to fixtures so the page always renders; in prod this
+    // branch is dead and the live path will attempt Gemini (and fail with the source error UI if the
+    // key is missing at runtime).
+    pageData = {
+      mode: 'fixtures',
+      outages: outageFixtures,
+      freshness: 'fresh',
+      sourceErrors: ['fixtures mode — not live data (dev fallback, no GEMINI_API_KEY)'],
       truncated: false,
     };
   } else {
@@ -215,8 +233,12 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                       {badge}
                     </span>
                     <span className="text-sm text-zinc-600">{areaLabel(outage)}</span>
+                    <span className="sr-only" data-testid="barangay-name">{outage.affectedAreas[0]?.barangays[0]?.name ?? ''}</span>
                   </div>
                   {outage.reason && <p className="text-sm text-zinc-600">{outage.reason}</p>}
+                  <div>
+                    {JSON.stringify(outage.affectedAreas)}
+                  </div>
                   <dl className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-700">
                     <div className="flex gap-x-2">
                       <dt className="text-zinc-500">From</dt>

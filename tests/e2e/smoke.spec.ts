@@ -13,3 +13,10 @@ test('fixtures mode renders the outage summary and at least one card', async ({ 
   await expect(page.getByText(/\d+ active/)).toBeVisible();
   await expect(page.getByRole('article').first()).toBeVisible();
 });
+
+test('fixtures mode renders actual barangay names', async ({ page }) => {
+  await page.goto('/?source=fixtures');
+  await expect(page.getByRole('article').first()).toContainText('Kalusugan');
+});
+
+
