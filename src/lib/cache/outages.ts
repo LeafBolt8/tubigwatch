@@ -5,7 +5,7 @@ import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import type { Outage } from '@/lib/schemas/outage';
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
-const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
+// const MW_URL = 'https://www.manilawater.com/customers/service-advisories'; // paused: Manila Water extraction removed for v1
 
 function dedupById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -67,7 +67,7 @@ export type GeminiCachedOutagesResult = {
 export const getCachedGeminiOutages = unstable_cache(
   async () => {
     const maynilad = await extractOutagesFromUrl(MAYNI_URL);
-    const manilaWater = await extractOutagesFromUrl(MW_URL);
+    const manilaWater = { outages: [], error: 'Manila Water extraction is paused for v1 (Cloudflare block).' };
 
     const merged = dedupById<Outage>([
       ...maynilad.outages,
@@ -81,5 +81,5 @@ export const getCachedGeminiOutages = unstable_cache(
     return { outages: merged, errors };
   },
   ['gemini-outages'],
-  { revalidate: 3600, tags: ['gemini-outages'] },
+  { revalidate: 86400, tags: ['gemini-outages'] },
 );
