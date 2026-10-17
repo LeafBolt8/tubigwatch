@@ -94,6 +94,27 @@ test('skips test, spec, and test-directory files by default', () => {
   });
 });
 
+test('skips raw third-party captures by path, not by file extension', () => {
+  withTempDir((dir) => {
+    const gradient = '.x{background:linear-gradient(90deg, #8b5cf6, #3b82f6);}\n';
+    mkdirSync(join(dir, '__fixtures__', 'raw'), { recursive: true });
+    writeFileSync(join(dir, '__fixtures__', 'raw', 'maynilad-capture.html'), gradient);
+
+    // Same bytes, same .html extension, outside __fixtures__/raw: still flagged.
+    writeFileSync(join(dir, 'page.html'), gradient);
+
+    const result = runCli([dir, '--json']);
+    assert.equal(result.status, 1);
+    const flagged = Object.keys(JSON.parse(result.stdout).findings);
+    assert.equal(flagged.length, 1);
+    assert.ok(flagged[0].endsWith('page.html'), `expected page.html to be flagged, got ${flagged[0]}`);
+    assert.ok(
+      !flagged.some((file) => file.endsWith('maynilad-capture.html')),
+      'the raw capture must not be flagged',
+    );
+  });
+});
+
 test('honours --glass-cap', () => {
   withTempDir((dir) => {
     writeFileSync(join(dir, 'a.css'), '.a{backdrop-filter:blur(1px)}\n.b{backdrop-filter:blur(1px)}\n');

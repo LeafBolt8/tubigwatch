@@ -33,6 +33,9 @@ export const DEFAULT_IGNORE_DIRS = new Set([
 // scans shipped source and not its own examples.
 export const TEST_OR_SPEC_RE = /\.(?:test|spec)\.[a-z0-9]+$/i;
 
+// raw captures of third-party sites are not our UI; do not lint them.
+export const DEFAULT_IGNORE_PATH_RE = /[\\/]__fixtures__[\\/]raw[\\/]/;
+
 export const DEFAULT_GLASS_CAP = 2;
 
 export const RULE_META = {

@@ -124,9 +124,41 @@ Bounded probes, one request each, UA as above, `curl -m 70`.
 - `GET /wp-json/interruptions/emergency?page=2` → **200**, 1,922 B, 18.0 s. Body is page 1 again: `data-page="1" data-max="4" data-next="48788"`, same 7 columns, first row `Manila / Brgys. 36, 162, 182, 198 to 220, ...`.
 - `GET /wp-json/interruptions/emergency?next=48788` → **200**, 1,922 B, 18.5 s, **byte-for-byte the same page-1 body** including `data-page="1" data-next="48788"`.
 
-Conclusion: neither `?page=` nor `?next=` paginates. The server answers with page 1 regardless, so the `data-next` cursor must be consumed some other way (unknown; the client JS in the saved homepage capture is the next place to look). Live drift is visible between rounds: `data-max` went 11 → 4 and `data-next` 48753 → 48788, which confirms the endpoints are live and that page 1 alone is **not** the full set when `data-max > 1`. `maynilad.ts` fetches page 1 only and does not claim completeness.
+Conclusion: neither `?page=` nor `?next=` paginates. The server answers with page 1 regardless. Live drift is visible between rounds: `data-max` went 11 → 4 and `data-next` 48753 → 48788, which confirms the endpoints are live and that page 1 alone is **not** the full set when `data-max > 1`.
+
+## Round 4 — pagination RESOLVED (2026-10-17)
+
+The parameter is **`id`**, carrying the container's `data-next` cursor. Found in the saved homepage
+capture (`maynilad-20261016.html`, lines 2045-2067), in the endpoint's own "Load More" handler:
+
+```
+var params = { city: cityFilter, id: jQuery('#emergency_sched').attr('data-next') };
+var apiURL = window.location.protocol + '//' + window.location.hostname + '/wp-json/interruptions/emergency?' + jQuery.param(params);
+jQuery.ajax({ url: apiURL, success: function (response) { jQuery('#emergency_sched').find('tbody').append(response.html); jQuery('#emergency_sched').attr('data-next', response.next);
+... if (currentPage < parseInt(jQuery('#emergency_sched').attr('data-max'))) { /* show Load More again */ }
+```
+
+So `data-max` is a page count, `response.next` becomes the next cursor, and the same handler exists for
+`#rotational_sched` (line 2013) and `#scheduled_sched` (line 1970).
+
+Verified live: `GET /emergency` → 200, 1,922 B, 18.3 s, `data-next="48788"`. Then
+`GET /emergency?id=48788` → **200, 1,120 B, 16.8 s** — a *different* page, and a **JSON object**
+(`keys=next,html`) whose `html` is a **bare `<tr>` list with no `<table>` and no `<thead>`**, and whose
+`next` is a **JSON number** (`48801`), not a string. The site's `jQuery.attr()` stringifies it; a strict
+string-only reader silently stops at page 1+1, so `maynilad.ts` accepts both.
+
+`maynilad.ts` now follows the chain in `fetchMayniladEndpoint`: cursor from page 1's wrapper, page request
+`?id=<cursor>`, rows parsed against page 1's headers via `parseHtmlRows()`. Cap `MAX_PAGES = 5` per
+endpoint, `PAGE_GAP_MS = 500` between page requests, and a page body byte-identical to the previous page
+ends the loop (data-page/data-next live inside the body, so identical bytes mean the cursor is not
+moving). Stopping at the cap leaves a live cursor and sets `truncated: true` on the result.
+
+Live 2-page verification (2026-10-17): cap 1 page → 8 outages, `pagesFetched=3`, `truncated=true`; cap 2
+pages → 13 outages, `pagesFetched=5`, `truncated=true`, 7 ids added by page 2, 6 ids seen on both pages
+collapsing into the same outage, 0 duplicate ids.
 
 Follow-ups still open (NOT done):
-1. Find the real pagination mechanism (inspect the homepage capture's jQuery.ajax call for the param name it sends alongside `data-next`), then fetch the remaining pages. Until then the module ingests page 1 only.
+1. `/emergency` reports `data-max="4"` pages; a default (cap 5) live run has not been executed end to end —
+   the cap and byte-identical stop are covered by `tests/unit/maynilad.test.ts`, not by a live run.
 2. Confirm whether Maynilad's `/service-advisories/` and `/service-advisories-2/` pages are server-rendered static HTML or also rely on the REST fragments.
 3. Decide the Manila Water path: Playwright fetch of one subpage vs fixtures-only.

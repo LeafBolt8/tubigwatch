@@ -16,6 +16,7 @@ import {
   analyzeSource,
   SCAN_EXTENSIONS,
   DEFAULT_IGNORE_DIRS,
+  DEFAULT_IGNORE_PATH_RE,
   DEFAULT_GLASS_CAP,
   TEST_OR_SPEC_RE,
 } from './antislop-rules.mjs';
@@ -60,15 +61,17 @@ function walk(dir, files) {
     return files;
   }
   for (const entry of entries) {
+    const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       if (DEFAULT_IGNORE_DIRS.has(entry.name)) continue;
-      walk(join(dir, entry.name), files);
+      walk(full, files);
     } else if (
       entry.isFile() &&
       SCAN_EXTENSIONS.includes(extname(entry.name).toLowerCase()) &&
-      !TEST_OR_SPEC_RE.test(entry.name)
+      !TEST_OR_SPEC_RE.test(entry.name) &&
+      !DEFAULT_IGNORE_PATH_RE.test(full)
     ) {
-      files.push(join(dir, entry.name));
+      files.push(full);
     }
   }
   return files;
