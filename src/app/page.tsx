@@ -1,10 +1,9 @@
-import { getCachedMayniladOutages } from '@/lib/cache/outages';
+import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 
-// Per-task deviation vs §4's revalidate: 3600: Maynilad rows reflect active repairs,
-// so 15 min balances source load with freshness. Documented in the cache wrapper too.
+export const maxDuration = 300;
 
 type Mode = 'live' | 'fixtures';
 
@@ -151,13 +150,17 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       truncated: false,
     };
   } else {
-    const data = await getCachedMayniladOutages();
+    const outages = await getCachedGeminiOutages();
+    const sourceErrors: Array<string> = [];
+    if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
+      sourceErrors.push('Gemini API key not configured — AI extraction is unavailable');
+    }
     pageData = {
       mode: 'live',
-      outages: data.outages,
-      freshness: data.freshness,
-      sourceErrors: data.sourceErrors,
-      truncated: data.truncated,
+      outages,
+      freshness: 'fresh',
+      sourceErrors,
+      truncated: false,
     };
   }
 
@@ -168,7 +171,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const sourceLine =
     isFixtures
       ? `Source: Maynilad · Data mode: fixtures (not live)`
-      : `Source: Maynilad · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
+      : `Source: Maynilad & Manila Water · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
@@ -176,6 +179,9 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         <h1 className="text-3xl font-semibold tracking-tight">TubigWatch</h1>
         <p className="mt-1 text-zinc-600">Metro Manila water service advisories</p>
         <p className="mt-2 text-sm text-zinc-500">{sourceLine}</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Data fetched via AI extraction. First load may take up to 80s; subsequent loads are instant.
+        </p>
       </header>
 
       {freshness !== 'fresh' && (

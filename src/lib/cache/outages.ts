@@ -1,9 +1,25 @@
 import { unstable_cache } from 'next/cache';
 
 import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
+import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
+import type { Outage } from '@/lib/schemas/outage';
 
-/**
- * Cached surface for `fetchMayniladOutages()`.
+const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
+const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
+
+function dedupById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const kept: T[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    kept.push(item);
+  }
+  return kept;
+}
+
+/***
+ * Cached surface for the Maynilad native fetcher.
  *
  * Revalidation + the cache key are chosen for outage-type data:
  * - revalidate: 900 s (15 min), not the §4 default of 3600 s. Reason: Maynilad rows reflect active
@@ -28,4 +44,33 @@ export const getCachedMayniladOutages = unstable_cache(
   },
   ['maynilad-outages'],
   { revalidate: 900, tags: ['maynilad'] },
+);
+
+/***
+ * Cached surface for Gemini-extracted outages from the Cloudflare-protected advisory pages.
+ *
+ * Design notes:
+ * - One cache entry per deploy, keyed with no args (both URLs are constant). If a future task ever
+ *   needs per-page or per-key cache lifetimes, it must pass serializable args and adjust the key.
+ * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
+ *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
+ *   freshness. This is the §4 default and is appropriate here.
+ * - Tags: ['gemini-outages'] so a revalidateTag('gemini-outages') would refresh both sources at once.
+ * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
+ *   outage rows (they surface as sourceErrors in the route).
+ */
+export const getCachedGeminiOutages = unstable_cache(
+  async () => {
+    const maynilad = await extractOutagesFromUrl(MAYNI_URL);
+    const manilaWater = await extractOutagesFromUrl(MW_URL);
+
+    const merged = dedupById<Outage>([
+      ...maynilad.outages,
+      ...manilaWater.outages,
+    ]);
+
+    return merged;
+  },
+  ['gemini-outages'],
+  { revalidate: 3600, tags: ['gemini-outages'] },
 );

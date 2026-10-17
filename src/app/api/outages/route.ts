@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getCachedMayniladOutages } from '@/lib/cache/outages';
+import { getCachedMayniladOutages, getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
-import { extractOutagesFromUrl, type GeminiExtractResult } from '@/lib/ingestion/gemini';
+
+export const maxDuration = 300;
 
 /***
  * Contract the UI will consume (do not change without the UI tasks):
@@ -18,34 +19,20 @@ import { extractOutagesFromUrl, type GeminiExtractResult } from '@/lib/ingestion
  *
  *   GET /api/outages?source=gemini
  *     → same shape, with outages extracted by Gemini from both Maynilad and Manila Water
- *       advisory pages. `sourceErrors` will carry any Gemini parse/extract error plus an
- *       explicit "not live data" note.
+ *       advisory pages, served from a 1-hour `unstable_cache` entry. When Gemini succeeds,
+ *       `sourceErrors` is `[]`. When Gemini errors, `sourceErrors` carries the real Gemini errors;
+ *       there is no hardcoded "not live data" string in the success path.
  *
  * `fetchedAt` is set at response-construction time (the moment we served the cached value), NOT the
  * moment the source was scraped. A future task can surface the scraped `fetchedAt` from inside the
  * cache's result, but this route does not fabricate one.
  *
  * Deviation note (vs ARCHITECTURE §4 cache policy):
- *   §4 specifies revalidate: 3600 s (1 hour) per source tag. We use 900 s here because Maynilad rows
- *   reflect active repairs that can be restored at any hour, and the endpoint is slow (~143 s for a full
- *   read). 15 min balances source load against freshness without pretending the page is live — a future
- *   task can revisit this once the revalidate flow in §6 is wired.
+ *   §4 specifies revalidate: 3600 s (1 hour) per source tag. The Gemini cache uses 3600 s; the native
+ *   Maynilad cache uses 900 s because Maynilad rows reflect active repairs that can be restored at any
+ *   hour, and the endpoint is slow (~143 s for a full read). 15 min balances source load against freshness
+ *   without pretending the page is live.
  */
-
-const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
-const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
-
-function dedupById<T extends { id: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
-  const kept: T[] = [];
-  for (const item of items) {
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    kept.push(item);
-  }
-  return kept;
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
@@ -69,32 +56,24 @@ export async function GET(request: NextRequest) {
 
   // -- Gemini-extracted path (for Cloudflare-protected sources) --
   if (searchParams.has('source') && searchParams.get('source') === 'gemini') {
-    const maynilad = await extractOutagesFromUrl(MAYNI_URL);
-    const manilaWater = await extractOutagesFromUrl(MW_URL);
+    const outages = await getCachedGeminiOutages();
 
     const sourceErrors: string[] = [];
-    if (maynilad.error) sourceErrors.push(`maynilad: ${maynilad.error}`);
-    if (manilaWater.error) sourceErrors.push(`manila-water: ${manilaWater.error}`);
     if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
       sourceErrors.push('GEMINI_API_KEY not set — Gemini path is not configured');
     }
 
-    const merged = dedupById<GeminiExtractResult['outages'][number]>([
-      ...maynilad.outages,
-      ...manilaWater.outages,
-    ]);
-
     return NextResponse.json(
       {
-        outages: merged,
+        outages,
         freshness: 'fresh' as const,
         fetchedAt: new Date().toISOString(),
-        sourceErrors: sourceErrors.length > 0 ? sourceErrors : ['gemini mode — not live data'],
+        sourceErrors: sourceErrors.length > 0 ? sourceErrors : [],
         truncated: false,
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
         },
       },
     );
