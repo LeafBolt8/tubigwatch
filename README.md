@@ -6,7 +6,7 @@ Metro Manila water outage tracker for Maynilad service advisories.
 
 ## Overview
 
-TubigWatch is a Progressive Web App designed for high-contrast, low-bandwidth readability during typhoons and water interruptions.
+TubigWatch is a web application designed for high-contrast, low-bandwidth readability during typhoons and water interruptions.
 
 Instead of relying on fragile HTML scraping—which is often blocked by Cloudflare—the app uses the **Google Gemini API (`gemini-3.8-flash`) with URL Context** to read the official Maynilad advisories page, extract the unstructured HTML tables, and validate the data against strict Zod schemas.
 
@@ -20,7 +20,7 @@ Instead of relying on fragile HTML scraping—which is often blocked by Cloudfla
 - **Data Extraction:** Google Gemini API (`@google/genai`)
 - **Validation:** Zod
 - **Testing:** Vitest, Playwright
-- **CI/CD:** GitHub Actions, Vercel
+- **CI:** GitHub Actions | **CD:** Vercel
 
 ## How the AI Pipeline Works
 
