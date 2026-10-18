@@ -66,16 +66,38 @@ export type GeminiCachedOutagesResult = {
 
 export const getCachedGeminiOutages = unstable_cache(
   async () => {
-    const maynilad = await extractOutagesFromUrl(MAYNI_URL);
+    let mayniladOutages: Outage[] = [];
+    let mayniladError: string | null = null;
+
     const manilaWater = { outages: [], error: 'Manila Water extraction is paused for v1 (Cloudflare block).' };
 
+    try {
+      const geminiResult = await extractOutagesFromUrl(MAYNI_URL);
+      if (geminiResult.error) {
+        throw new Error(geminiResult.error);
+      }
+      mayniladOutages = geminiResult.outages;
+    } catch (geminiErr) {
+      console.warn('Gemini failed, falling back to native Maynilad scraper:', geminiErr);
+      try {
+        const nativeResult = await fetchMayniladOutages();
+        mayniladOutages = nativeResult.outages;
+        if (nativeResult.sourceErrors.length > 0) {
+          mayniladError = `Native fallback: ${nativeResult.sourceErrors.join(', ')}`;
+        }
+      } catch (nativeErr) {
+        const lastNativeErr = nativeErr instanceof Error ? nativeErr.message : String(nativeErr);
+        mayniladError = `Both Gemini and native scraper failed. Last Gemini error: ${geminiErr}; native error: ${lastNativeErr}`;
+      }
+    }
+
     const merged = dedupById<Outage>([
-      ...maynilad.outages,
+      ...mayniladOutages,
       ...manilaWater.outages,
     ]);
 
     const errors: string[] = [];
-    if (maynilad.error) errors.push(`maynilad: ${maynilad.error}`);
+    if (mayniladError) errors.push(mayniladError);
     if (manilaWater.error) errors.push(`manila-water: ${manilaWater.error}`);
 
     return { outages: merged, errors };
