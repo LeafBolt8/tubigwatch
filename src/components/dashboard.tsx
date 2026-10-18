@@ -3,7 +3,8 @@
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Map as MapIcon } from 'lucide-react';
+import Link from 'next/link';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 
@@ -161,6 +162,23 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
 
   return (
     <>
+      <header>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <MapIcon className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
+          </div>
+          <Link
+            href="/map"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+          >
+            <MapIcon className="w-4 h-4" />
+            View Map
+          </Link>
+        </div>
+        <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
+      </header>
+
       {mayniladError && (
         <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md my-4">
           <p className="font-bold">Data currently unavailable</p>
@@ -247,7 +265,7 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
                   const allBarangays = Array.from(
                     new Set(
                       outage.affectedAreas.flatMap((a) =>
-                        a.barangays.flatMap((b) => b.name.split(/[,;]|\band\b/).map((s) => s.trim())),
+                        a.barangays.flatMap((b) => b.name.split(/[,;]|\\band\\b/).map((s) => s.trim())),
                       ),
                     ),
                   ).filter(Boolean);
