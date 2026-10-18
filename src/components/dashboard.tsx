@@ -120,9 +120,11 @@ type DashboardProps = {
   sourceErrors: Array<string>;
 };
 
-export default function Dashboard({ outages }: DashboardProps) {
+export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
   const now = new Date();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
   const filteredOutages =
     statusFilter === 'all'
@@ -144,6 +146,15 @@ export default function Dashboard({ outages }: DashboardProps) {
 
   return (
     <>
+      {mayniladError && (
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md my-4">
+          <p className="font-bold">Data currently unavailable</p>
+          <ul className="list-disc pl-5 mt-1 text-sm">
+            <li>{mayniladError}</li>
+          </ul>
+        </div>
+      )}
+
       <div className="mb-6 text-sm font-medium text-zinc-600">
         {active} active · {scheduled} scheduled · {outages.length} total
         {statusUnknown ? ' · some status unknown' : ''}
