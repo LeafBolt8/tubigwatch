@@ -4,21 +4,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 
-function activePillClasses(value: StatusFilter): string {
-  if (value === 'all') {
-    return 'bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50';
-  }
-  if (value === 'active') {
-    return 'bg-zinc-900 text-white';
-  }
-  return 'bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50';
-}
-
-function scheduledPillClasses(value: StatusFilter): string {
-  if (value === 'scheduled') {
-    return 'bg-zinc-900 text-white';
-  }
-  return 'bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50';
+function pillClasses(status: StatusFilter, value: StatusFilter): string {
+  const active = status === value;
+  return active
+    ? 'bg-white text-zinc-900 shadow-sm rounded-md px-4 py-1.5 text-sm font-medium'
+    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-md px-4 py-1.5 text-sm font-medium transition-all';
 }
 
 export default function FilterPills() {
@@ -34,24 +24,24 @@ export default function FilterPills() {
   }
 
   return (
-    <div className="mt-4 flex gap-2">
+    <div className="inline-flex p-1 space-x-1 bg-zinc-200/50 rounded-lg mt-6 mb-2">
       <button
         type="button"
-        className={`rounded px-3 py-1 text-sm font-medium ${activePillClasses(status)}`}
+        className={pillClasses(status, 'all')}
         onClick={() => setStatus('all')}
       >
         All
       </button>
       <button
         type="button"
-        className={`rounded px-3 py-1 text-sm font-medium ${activePillClasses(status)}`}
+        className={pillClasses(status, 'active')}
         onClick={() => setStatus('active')}
       >
         Active
       </button>
       <button
         type="button"
-        className={`rounded px-3 py-1 text-sm font-medium ${scheduledPillClasses(status)}`}
+        className={pillClasses(status, 'scheduled')}
         onClick={() => setStatus('scheduled')}
       >
         Scheduled

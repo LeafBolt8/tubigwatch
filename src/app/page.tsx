@@ -42,19 +42,30 @@ function displayBadgeValue(status: OutageStatus): string {
 }
 
 function badgeClasses(status: OutageStatus): string {
-  // Solid colors, per ARCHITECTURE §5. Text/background pairing checked against WCAG AA at
-  // authoring time; no dark: variants in this task (light-only page).
   switch (status) {
     case 'active':
-      return 'bg-red-600 text-white';
+      return 'bg-red-50 text-red-700 border border-red-200';
     case 'scheduled':
-      return 'bg-amber-600 text-white';
+      return 'bg-amber-50 text-amber-700 border border-amber-200';
     case 'restored':
-      return 'bg-emerald-700 text-white';
+      return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
     case 'cancelled':
-      return 'bg-zinc-500 text-white';
     case 'unknown':
-      return 'bg-zinc-400 text-white';
+      return 'bg-zinc-100 text-zinc-700 border border-zinc-300';
+  }
+}
+
+function badgeDotColor(status: OutageStatus): string {
+  switch (status) {
+    case 'active':
+      return 'bg-red-500';
+    case 'scheduled':
+      return 'bg-amber-500';
+    case 'restored':
+      return 'bg-emerald-500';
+    case 'cancelled':
+    case 'unknown':
+      return 'bg-zinc-400';
   }
 }
 
@@ -202,9 +213,9 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
       <header className="mb-8 border-b border-zinc-200 pb-6">
-        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">TubigWatch</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
         <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
-        <p className="mt-4 text-sm text-zinc-400">{sourceLine}</p>
+        <p className="mt-4 text-sm text-zinc-400 font-medium">{sourceLine}</p>
       </header>
 
       {freshness !== 'fresh' && (
@@ -242,7 +253,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         <ul className="space-y-12">
           {sortedCities.map((city) => (
             <li key={city}>
-              <h2 className="text-xl font-bold mt-8 mb-4 border-b border-zinc-200 pb-2">
+              <h2 className="text-xl font-bold text-zinc-800 border-b border-zinc-200 pb-2 mb-4">
                 {city ?? 'Unknown'}
               </h2>
               <ul className="space-y-4">                    {groupedByCity.get(city)?.map((outage) => {
@@ -250,6 +261,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
 
                   const badge = displayBadgeValue(status);
                   const statusClass = badgeClasses(status);
+                  const dotClass = badgeDotColor(status);
                   const cities = Array.from(new Set(outage.affectedAreas.flatMap((a) => a.barangays.map((b) => b.city))));
                   const citiesLine = cities.length > 0 ? cities.join(', ') : '';
                   const allBarangays = Array.from(
@@ -269,17 +281,21 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                     .join(' - ');
                   return (
                     <li key={outage.id} className="flex flex-col">
-                      <article className="bg-white rounded-xl border border-zinc-200 border-l-4 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-zinc-300">
+                      <article className="bg-white rounded-xl ring-1 ring-zinc-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
                         <div className="p-5 flex flex-col gap-3">
                           <div className="flex items-center justify-between gap-3">
-                            <span className={`rounded-sm px-2 py-0.5 text-xs font-bold tracking-wider uppercase ${statusClass}`}>
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${statusClass}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                               {badge}
                             </span>
                             {timeRange && (
                               <span className="text-sm text-zinc-500 font-medium">{timeRange}</span>
                             )}
                           </div>
-                          {outage.reason && <p className="text-lg font-semibold text-zinc-900 mt-3">{outage.reason}</p>}
+
+                          {outage.reason && (
+                            <p className="text-lg font-semibold text-zinc-900 mt-3">{outage.reason}</p>
+                          )}
 
                           {cities.length > 0 && (
                             <p className="font-medium text-zinc-900 mb-2">{citiesLine}</p>
@@ -288,7 +304,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                           {allBarangays.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {allBarangays.map((b) => (
-                                <span key={b} className="inline-block bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs px-2.5 py-1 rounded-md">
+                                <span key={b} className="inline-block bg-zinc-100 text-zinc-600 text-[11px] px-2 py-0.5 rounded">
                                   Brgy. {b}
                                 </span>
                               ))}
