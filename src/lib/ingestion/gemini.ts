@@ -7,7 +7,7 @@ import {
 import type { Outage } from '@/lib/schemas/outage';
 
 const GENAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 export type GeminiExtractResult = {
   outages: Outage[];

@@ -193,7 +193,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const sourceLine =
     isFixtures
       ? `Source: Maynilad · Data mode: fixtures (not live)`
-      : `Source: Maynilad & Manila Water · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
+      : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
@@ -210,6 +210,17 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         <p className="mb-6 rounded border border-zinc-300 bg-white px-4 py-3 text-zinc-900">
           Source unavailable: {freshnessNote(freshness, sourceErrors)}
         </p>
+      )}
+
+      {sourceErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md my-4">
+          <p className="font-bold">Data currently unavailable</p>
+          <ul className="list-disc pl-5 mt-1 text-sm">
+            {sourceErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <p className="mb-6 text-zinc-700">
