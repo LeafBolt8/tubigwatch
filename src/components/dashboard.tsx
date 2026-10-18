@@ -3,6 +3,7 @@
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useState } from 'react';
+import { Search } from 'lucide-react';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 
@@ -123,13 +124,27 @@ type DashboardProps = {
 export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
   const now = new Date();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
-  const filteredOutages =
-    statusFilter === 'all'
-      ? outages
-      : outages.filter((outage) => computeStatus(outage, now) === statusFilter);
+  const filteredOutages = outages.filter((outage) => {
+    const matchesStatus = statusFilter === 'all' || computeStatus(outage, now) === statusFilter;
+
+    if (!matchesStatus) return false;
+    if (!searchQuery.trim()) return true;
+
+    const query = searchQuery.toLowerCase();
+    const reasonMatch = outage.reason.toLowerCase().includes(query);
+    const cityMatch = outage.affectedAreas.some((area) =>
+      area.barangays.some((b) => b.city?.toLowerCase().includes(query)),
+    );
+    const barangayMatch = outage.affectedAreas.some((area) =>
+      area.barangays.some((b) => b.name.toLowerCase().includes(query)),
+    );
+
+    return reasonMatch || cityMatch || barangayMatch;
+  });
 
   const { active, scheduled } = statusCounts(outages, now);
   const statusUnknown = outages.some((o) => computeStatus(o, now) === 'unknown');
@@ -160,6 +175,19 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
         {statusUnknown ? ' · some status unknown' : ''}
       </div>
 
+      <div className="relative mt-6 mb-4">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-zinc-400" />
+        </div>
+        <input
+          type="text"
+          className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
+          placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
       <div className="inline-flex p-1 space-x-1 bg-slate-200 rounded-lg mt-6 mb-2">
         <button
           type="button"
@@ -185,7 +213,19 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
       </div>
 
       {filteredOutages.length === 0 ? (
-        <p className="mb-6">No outages match the selected filter.</p>
+        <div className="text-center py-12 bg-white rounded-xl border border-zinc-200 mt-6">
+          <p className="text-zinc-500 text-lg">No outages found matching your criteria.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setStatusFilter('all');
+            }}
+            className="mt-4 text-blue-600 font-medium hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <ul className="space-y-12">
           {sortedCities.map((city) => (
