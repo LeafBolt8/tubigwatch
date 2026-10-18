@@ -182,9 +182,16 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       ? outages
       : outages.filter((outage) => computeStatus(outage, now) === statusFilter);
 
+  function splitCityKey(raw: string): string {
+  // AI sometimes returns combined city strings like "Bacoor City; Imus City".
+  // Split on ; or , so a combined label still groups as one combined city line.
+  const parts = raw.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+  return parts.join(', ');
+}
+
   const groupedByCity = new Map<string, Outage[]>();
   for (const outage of filteredOutages) {
-    const firstCity = primaryCityKey(outage);
+    const firstCity = splitCityKey(primaryCityKey(outage));
     const grouped = groupedByCity.get(firstCity) ?? [];
     grouped.push(outage);
     groupedByCity.set(firstCity, grouped);
@@ -193,7 +200,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const sortedCities = Array.from(groupedByCity.keys()).sort((a, b) => a.localeCompare(b));
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
+    <main className="max-w-3xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
       <header className="mb-8 border-b border-zinc-200 pb-6">
         <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">TubigWatch</h1>
         <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
@@ -215,7 +222,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         </div>
       )}
 
-      <p className="mb-6 text-zinc-700">
+      <p className="mb-6 text-sm font-medium text-zinc-600">
         {active} active · {scheduled} scheduled · {outages.length} total
         {statusUnknown ? ' · some status unknown' : ''}
       </p>
@@ -242,48 +249,56 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                   const status = computeStatus(outage, now);
 
                   const badge = displayBadgeValue(status);
+                  const statusClass = badgeClasses(status);
                   const cities = Array.from(new Set(outage.affectedAreas.flatMap((a) => a.barangays.map((b) => b.city))));
                   const citiesLine = cities.length > 0 ? cities.join(', ') : '';
-                  const barangays = Array.from(new Set(outage.affectedAreas.flatMap((a) => a.barangays.map((b) => b.name))));
+                  const allBarangays = Array.from(
+                    new Set(
+                      outage.affectedAreas.flatMap((a) =>
+                        a.barangays.flatMap((b) =>
+                          b.name.split(/[,;]|\band\b/).map((s) => s.trim()),
+                        ),
+                      ),
+                    ),
+                  ).filter(Boolean);
+                  const timeRange = [
+                    localTime(outage.startsAt ?? null, now),
+                    localTime(outage.endsAt ?? null, now),
+                  ]
+                    .filter((t) => t !== 'unknown time')
+                    .join(' - ');
                   return (
                     <li key={outage.id} className="flex flex-col">
-                      <article className="bg-white rounded-xl border border-zinc-200 border-l-4 shadow-sm overflow-hidden">
+                      <article className="bg-white rounded-xl border border-zinc-200 border-l-4 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-zinc-300">
                         <div className="p-5 flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <span className={`rounded-sm px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${badgeClasses(status)}`}>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className={`rounded-sm px-2 py-0.5 text-xs font-bold tracking-wider uppercase ${statusClass}`}>
                               {badge}
                             </span>
+                            {timeRange && (
+                              <span className="text-sm text-zinc-500 font-medium">{timeRange}</span>
+                            )}
                           </div>
-                          {outage.reason && <p className="text-lg font-semibold text-zinc-900">{outage.reason}</p>}
+                          {outage.reason && <p className="text-lg font-semibold text-zinc-900 mt-3">{outage.reason}</p>}
 
                           {cities.length > 0 && (
                             <p className="font-medium text-zinc-900 mb-2">{citiesLine}</p>
                           )}
 
-                          {barangays.length > 0 && (
+                          {allBarangays.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {barangays.map((b) => (
-                                <span key={b} className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-500/10">
+                              {allBarangays.map((b) => (
+                                <span key={b} className="inline-block bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs px-2.5 py-1 rounded-md">
                                   Brgy. {b}
                                 </span>
                               ))}
                             </div>
                           )}
 
-                          {barangays.length === 0 && cities.length === 0 && (
+                          {allBarangays.length === 0 && cities.length === 0 && (
                             <p className="text-sm text-zinc-500">Location details unavailable</p>
                           )}
 
-                          <dl className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-zinc-500">
-                            <div className="flex gap-x-2">
-                              <dt className="text-zinc-500">From</dt>
-                              <dd>{localTime(outage.startsAt ?? null, now)}</dd>
-                            </div>
-                            <div className="flex gap-x-2">
-                              <dt className="text-zinc-500">To</dt>
-                              <dd>{localTime(outage.endsAt ?? null, now)}</dd>
-                            </div>
-                          </dl>
                           {countdownText(outage, now) && (
                             <p className="text-sm text-zinc-700">{countdownText(outage, now)}</p>
                           )}
