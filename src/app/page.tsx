@@ -55,42 +55,6 @@ function badgeClasses(status: OutageStatus): string {
   }
 }
 
-// Affected-area label: prefer an explicit city when present; otherwise fall back to the locales from
-// affectedAreas. Nested barangay names inside `affectedAreas` are typed as opaque area records, so
-// we render those records through their textual shape only where a reason/area string is available,
-// rather than reaching into undocumented inner keys.
-function areaLabel(outage: Outage): string {
-  const areas = outage.affectedAreas;
-  if (areas.length === 0) return 'Location details unavailable';
-
-  const allCities = new Set<string>();
-  const allBarangays: Array<string> = [];
-  let firstNote: string | undefined;
-
-  for (const area of areas) {
-    for (const barangay of area.barangays) {
-      allCities.add(barangay.city);
-      allBarangays.push(`Brgy. ${barangay.name}`);
-    }
-    if (firstNote === undefined && area.notes) {
-      firstNote = area.notes;
-    }
-  }
-
-  const cities = Array.from(allCities).join(', ');
-  const shownCount = 3;
-  const visible = allBarangays.slice(0, shownCount);
-  const remaining = allBarangays.length - shownCount;
-  if (visible.length === 0) return 'Location details unavailable';
-  const areasLine =
-    visible.length === 1
-      ? visible[0]
-      : `${visible.slice(0, -1).join(', ')} and ${visible[visible.length - 1]}` +
-        (remaining > 0 ? `, +${remaining} more` : '');
-
-  return `**City:** ${cities}\n**Areas:** ${areasLine}`;
-}
-
 // now is used so localTime is always UTC-safe at display time even when the same Date is passed
 // from multiple places; the rendered value still honors Asia/Manila, not the server TZ.
 function localTime(date: Date | string | null, now: Date): string {
@@ -190,6 +154,10 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const { active, scheduled } = statusCounts(outages, now);
   const statusUnknown = outages.some((o) => computeStatus(o, now) === 'unknown');
 
+  // The banner is reserved for a Maynilad failure: Manila Water is intentionally paused for v1 and
+  // its notice belongs in a quiet footer line, not an alarm.
+  const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
+
   const sourceLine =
     isFixtures
       ? `Source: Maynilad · Data mode: fixtures (not live)`
@@ -212,13 +180,11 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         </p>
       )}
 
-      {sourceErrors.length > 0 && (
+      {mayniladError && (
         <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md my-4">
           <p className="font-bold">Data currently unavailable</p>
           <ul className="list-disc pl-5 mt-1 text-sm">
-            {sourceErrors.map((err, i) => (
-              <li key={i}>{err}</li>
-            ))}
+            <li>{mayniladError}</li>
           </ul>
         </div>
       )}
@@ -250,7 +216,6 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
                     <span className={`rounded-sm px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${badgeClasses(status)}`}>
                       {badge}
                     </span>
-                    <span className="text-sm text-zinc-600">{areaLabel(outage)}</span>
                   </div>
                   {outage.reason && <p className="text-sm text-zinc-600">{outage.reason}</p>}
                   <div className="text-sm text-zinc-700 mt-2 space-y-1">
@@ -291,6 +256,8 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       <footer className="mt-10 border-t border-zinc-200 pt-4 text-xs text-zinc-500">
         Verify against mayniladwater.com.ph before relying on this data.
       </footer>
+
+      <p className="text-xs text-zinc-400 mt-8">Note: Manila Water data is temporarily paused.</p>
     </main>
   );
 }
