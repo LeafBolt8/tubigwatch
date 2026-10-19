@@ -3,7 +3,7 @@
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
-import { Search, Map as MapIcon } from 'lucide-react';
+import { Copy, Droplet, Map as MapIcon, Search } from 'lucide-react';
 import Link from 'next/link';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
@@ -67,23 +67,38 @@ function localTime(date: Date | string | null, now: Date): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hour12: true,
   });
 }
 
-function countdownText(outage: Outage, now: Date): string | null {
-  if (!outage.endsAt) return null;
-  const endsAt = new Date(outage.endsAt);
-  if (isNaN(endsAt.getTime())) return null;
-  if (endsAt <= now) return null;
-
-  const diffMs = endsAt.getTime() - now.getTime();
+function relativeTime(target: Date, now: Date): string {
+  const diffMs = target.getTime() - now.getTime();
   const hours = Math.floor(diffMs / 3_600_000);
   if (hours < 1) {
-    const mins = Math.round(diffMs / 60_000);
-    return `Restores in ~${mins} min`;
+    const mins = Math.max(1, Math.round(diffMs / 60_000));
+    return `${mins} min`;
   }
-  return `Restores in ~${hours} hr`;
+  return hours === 1 ? '1 hr' : `${hours} hrs`;
+}
+
+function countdownText(outage: Outage, now: Date): string | null {
+  const status = computeStatus(outage, now);
+
+  if (status === 'scheduled') {
+    if (!outage.startsAt) return null;
+    const startsAt = new Date(outage.startsAt);
+    if (isNaN(startsAt.getTime()) || startsAt <= now) return null;
+    return `Starts in ~${relativeTime(startsAt, now)}`;
+  }
+
+  if (status === 'active') {
+    if (!outage.endsAt) return null;
+    const endsAt = new Date(outage.endsAt);
+    if (isNaN(endsAt.getTime()) || endsAt <= now) return null;
+    return `Restores in ~${relativeTime(endsAt, now)}`;
+  }
+
+  return null;
 }
 
 function statusCounts(outages: Outage[], now: Date): { active: number; scheduled: number } {
@@ -113,16 +128,17 @@ function splitCityKey(raw: string): string {
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
-    ? 'bg-white text-zinc-900 shadow-sm rounded-md px-4 py-1.5 text-sm font-medium'
-    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-md px-4 py-1.5 text-sm font-medium transition-all';
+    ? 'inline-flex items-center bg-white text-zinc-900 shadow-sm rounded-md px-4 py-1.5 text-sm font-medium'
+    : 'inline-flex items-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-md px-4 py-1.5 text-sm font-medium transition-all';
 }
 
 type DashboardProps = {
   outages: Outage[];
   sourceErrors: Array<string>;
+  sourceLabel?: string;
 };
 
-export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
+export default function Dashboard({ outages, sourceErrors, sourceLabel }: DashboardProps) {
   const now = new Date();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,6 +178,7 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
   });
 
   const { active, scheduled } = statusCounts(outages, now);
+  const total = outages.length;
   const statusUnknown = outages.some((o) => computeStatus(o, now) === 'unknown');
 
   const groupedByCity = new Map<string, Outage[]>();
@@ -185,21 +202,35 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
         </div>
       )}
 
-      <header>
-        <div className="flex items-center justify-between gap-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-200 pb-6">
+        <div>
           <div className="flex items-center gap-2">
-            <MapIcon className="w-8 h-8 text-blue-600" />
+            <Droplet className="w-8 h-8 text-blue-600" />
             <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
           </div>
+          <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-zinc-500 font-medium hidden md:block">
+            {sourceLabel ?? (
+              <>
+                Source: Maynilad · Last updated:{' '}
+                {now.toLocaleTimeString('en-PH', {
+                  timeZone: 'Asia/Manila',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true,
+                })}
+              </>
+            )}
+          </span>
           <Link
             href="/map"
             className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
           >
-            <MapIcon className="w-4 h-4" />
-            View Map
+            <MapIcon className="w-4 h-4" /> View Map
           </Link>
         </div>
-        <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
       </header>
 
       {mayniladError && (
@@ -211,46 +242,41 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
         </div>
       )}
 
-      <div className="mb-6 text-sm font-medium text-zinc-600">
-        {active} active · {scheduled} scheduled · {outages.length} total
-        {statusUnknown ? ' · some status unknown' : ''}
-      </div>
+      {statusUnknown && (
+        <p className="mb-6 text-sm font-medium text-zinc-600">Some outages have an unknown status.</p>
+      )}
 
-      <div className="relative mt-6 mb-4">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-zinc-400" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 mb-8">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-zinc-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
+            placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
-          placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
 
-      <div className="inline-flex p-1 space-x-1 bg-slate-200 rounded-lg mt-6 mb-2">
-        <button
-          type="button"
-          className={pillClasses(statusFilter, 'all')}
-          onClick={() => setStatusFilter('all')}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          className={pillClasses(statusFilter, 'active')}
-          onClick={() => setStatusFilter('active')}
-        >
-          Active
-        </button>
-        <button
-          type="button"
-          className={pillClasses(statusFilter, 'scheduled')}
-          onClick={() => setStatusFilter('scheduled')}
-        >
-          Scheduled
-        </button>
+        <div className="inline-flex p-1 space-x-1 bg-slate-200/60 rounded-lg">
+          <button type="button" className={pillClasses(statusFilter, 'all')} onClick={() => setStatusFilter('all')}>
+            All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-xs">{total}</span>
+          </button>
+          <button type="button" className={pillClasses(statusFilter, 'active')} onClick={() => setStatusFilter('active')}>
+            <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
+            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{active}</span>
+          </button>
+          <button
+            type="button"
+            className={pillClasses(statusFilter, 'scheduled')}
+            onClick={() => setStatusFilter('scheduled')}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
+            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{scheduled}</span>
+          </button>
+        </div>
       </div>
 
       {filteredOutages.length === 0 ? (
@@ -274,7 +300,7 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
               <h2 className="text-xl font-bold text-zinc-800 border-b border-zinc-200 pb-2 mb-4">
                 {city ?? 'Unknown'}
               </h2>
-              <ul className="space-y-4">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {groupedByCity.get(city)?.map((outage) => {
                   const status = computeStatus(outage, now);
 
@@ -288,18 +314,23 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
                   const allBarangays = Array.from(
                     new Set(
                       outage.affectedAreas.flatMap((a) =>
-                        a.barangays.flatMap((b) => b.name.split(/[,;]|\\band\\b/).map((s) => s.trim())),
+                        a.barangays.flatMap((b) =>
+                          b.name
+                            .split(/[,;]|\\band\\b/)
+                            .map((s) => s.trim().replace(/^Brgys?\.\s*/i, '').trim())
+                            .filter(Boolean),
+                        ),
                       ),
                     ),
-                  ).filter(Boolean);
+                  );
                   const timeRange = [localTime(outage.startsAt ?? null, now), localTime(outage.endsAt ?? null, now)]
                     .filter((t) => t !== 'unknown time')
-                    .join(' - ');
+                    .join(' – ');
 
                   return (
                     <li key={outage.id} className="flex flex-col">
                       <article
-                        className={`bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden transition-all hover:shadow-md border-l-4 ${
+                        className={`h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden transition-all hover:shadow-md border-l-4 ${
                           status === 'active'
                             ? 'border-l-red-500'
                             : status === 'scheduled'
@@ -309,23 +340,24 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
                                 : 'border-l-zinc-400'
                         }`}
                       >
-                        <div className="p-5 flex flex-col gap-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${statusClass}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                              {badge}
-                            </span>
+                        <div className="p-5 flex flex-col gap-3 h-full">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${statusClass}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                                {badge}
+                              </span>
+                              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider">
+                                Maynilad
+                              </span>
+                            </div>
                             {timeRange && (
-                              <span className="text-sm text-zinc-500 font-medium">{timeRange}</span>
+                              <span className="text-sm text-zinc-500 font-medium text-right">{timeRange}</span>
                             )}
                           </div>
 
                           {outage.reason && (
                             <p className="text-lg font-semibold text-zinc-900 mt-3">{outage.reason}</p>
-                          )}
-
-                          {cities.length > 0 && (
-                            <p className="font-medium text-zinc-900 mb-2">{citiesLine}</p>
                           )}
 
                           {allBarangays.length > 0 && (
@@ -345,9 +377,23 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
                             <p className="text-sm text-zinc-500">Location details unavailable</p>
                           )}
 
-                          {countdownText(outage, now) && (
-                            <p className="text-sm text-zinc-700">{countdownText(outage, now)}</p>
-                          )}
+                          <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+                            {countdownText(outage, now) && (
+                              <p className="text-sm text-zinc-700">{countdownText(outage, now)}</p>
+                            )}
+                            <button
+                              type="button"
+                              aria-label="Copy outage details"
+                              onClick={() => {
+                                const text = `${outage.reason} - ${citiesLine}\nFrom: ${localTime(outage.startsAt ?? null, now)}\nTo: ${localTime(outage.endsAt ?? null, now)}\nAffected: ${allBarangays.join(', ')}`;
+                                navigator.clipboard.writeText(text);
+                                alert('Copied to clipboard!');
+                              }}
+                              className="ml-auto text-zinc-500 hover:text-zinc-900 transition-colors"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </article>
                     </li>

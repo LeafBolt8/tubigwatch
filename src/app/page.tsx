@@ -1,7 +1,6 @@
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
-import { Droplet } from 'lucide-react';
 
 import Dashboard from '@/components/dashboard';
 
@@ -30,7 +29,6 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const sourceParam = typeof searchParams.source === 'string' ? searchParams.source : undefined;
 
   const isFixtures = sourceParam === 'fixtures';
-  const now = new Date();
 
   let pageData: PageData;
   if (isFixtures) {
@@ -72,23 +70,10 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   // The banner is reserved for a Maynilad failure: Manila Water is intentionally paused for v1 and
   // its notice belongs in a quiet footer line, not an alarm.
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
-
-  const sourceLine =
-    isFixtures
-      ? `Source: Maynilad · Data mode: fixtures (not live)`
-      : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  const sourceLabel = isFixtures ? 'Source: Maynilad · Data mode: fixtures (not live)' : undefined;
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
-      <header className="mb-8 border-b border-slate-200 pb-6">
-        <div className="flex items-center gap-2">
-          <Droplet className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-        </div>
-        <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
-        <p className="mt-4 text-sm text-zinc-400 font-medium">{sourceLine}</p>
-      </header>
-
+    <main className="max-w-6xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
       {freshness !== 'fresh' && (
         <p className="mb-6 rounded border border-slate-300 bg-white px-4 py-3 text-zinc-900">
           Source unavailable: {freshnessNote(freshness, sourceErrors)}
@@ -104,7 +89,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         </div>
       )}
 
-      <Dashboard outages={outages} sourceErrors={sourceErrors} />
+      <Dashboard outages={outages} sourceErrors={sourceErrors} sourceLabel={sourceLabel} />
 
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
         Verify against mayniladwater.com.ph before relying on this data.
