@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 import { Inter } from 'next/font/google';
 
+import RegisterSW from '@/components/register-sw';
+
 import './globals.css';
 
 const inter = Inter({
@@ -13,12 +15,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'TubigWatch',
   description: 'Metro Manila water outage tracker',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased`}>{children}</body>
+      <body className={`${inter.className} antialiased`}>
+        {children}
+        <RegisterSW />
+      </body>
     </html>
   );
 }

@@ -2,7 +2,7 @@
 
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Map as MapIcon } from 'lucide-react';
 import Link from 'next/link';
 
@@ -126,6 +126,20 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
   const now = new Date();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
@@ -162,6 +176,15 @@ export default function Dashboard({ outages, sourceErrors }: DashboardProps) {
 
   return (
     <>
+      {isOffline && (
+        <div
+          role="status"
+          className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-md mb-4 text-sm font-medium"
+        >
+          You are currently offline. Showing cached data.
+        </div>
+      )}
+
       <header>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">

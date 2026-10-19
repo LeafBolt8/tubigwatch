@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TubigWatch">
+  <rect width="512" height="512" fill="#1d4ed8"/>
+  <path
+    d="M256 72C236 104 140 228 140 324C140 388 192 440 256 440C320 440 372 388 372 324C372 228 276 104 256 72Z"
+    fill="#ffffff"
+  />
+</svg>

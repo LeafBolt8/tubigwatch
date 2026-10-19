@@ -13,6 +13,14 @@ const nodeGlobals = {
   clearTimeout: 'readonly',
 };
 
+// Service worker globals (lib.webworker) used by public/sw.js.
+const serviceWorkerGlobals = {
+  self: 'readonly',
+  caches: 'readonly',
+  fetch: 'readonly',
+  URL: 'readonly',
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -33,6 +41,10 @@ export default tseslint.config(
   {
     files: ['**/*.mjs'],
     languageOptions: { globals: nodeGlobals },
+  },
+  {
+    files: ['public/sw.js'],
+    languageOptions: { globals: serviceWorkerGlobals },
   },
   {
     rules: {
