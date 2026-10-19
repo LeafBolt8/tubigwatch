@@ -203,10 +203,10 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         </div>
       )}
 
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-200 pb-6">
+      <header className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="relative h-12 w-48 flex-shrink-0 rounded overflow-hidden">
-              <Image src="/logo.jpg" alt="TubigWatch" fill sizes="768px" className="mix-blend-multiply" />
+          <div className="relative h-14 w-auto flex-shrink-0 overflow-hidden">
+              <Image src="/logo.jpg" alt="TubigWatch" className="h-full w-full object-contain mix-blend-multiply" />
             </div>
           <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
         </div>
@@ -246,7 +246,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         <p className="mb-6 text-sm font-medium text-zinc-600">Some outages have an unknown status.</p>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 mb-8">
+      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-4 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-zinc-400" />
@@ -297,7 +297,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         <ul className="space-y-12">
           {sortedCities.map((city) => (
             <li key={city}>
-              <h2 className="text-xl font-bold text-zinc-800 border-b border-zinc-200 pb-2 mb-4">
+              <h2 className="bg-white/90 inline-block px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-xl font-bold text-slate-800 mb-4">
                 {city ?? 'Unknown'}
               </h2>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -330,7 +330,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   return (
                     <li key={outage.id} className="flex flex-col">
                       <article
-                        className={`h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden transition-all hover:shadow-md border-l-4 ${
+                        className={`h-full bg-white/95 rounded-xl shadow-md hover:shadow-lg border border-slate-200 overflow-hidden transition-all border-l-4 ${
                           status === 'active'
                             ? 'border-l-red-500'
                             : status === 'scheduled'
