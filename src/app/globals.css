@@ -5,6 +5,10 @@
 }
 
 body {
-  background-color: #f8fafc;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-color: #f8fafc; /* fallback */
   color: #18181b;
 }
