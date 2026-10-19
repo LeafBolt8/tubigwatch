@@ -205,12 +205,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-200 pb-6">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="relative h-12 w-48 flex-shrink-0 rounded overflow-hidden">
+          <div className="relative h-12 w-48 flex-shrink-0 rounded overflow-hidden">
               <Image src="/logo.jpg" alt="TubigWatch" fill sizes="768px" className="mix-blend-multiply" />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-          </div>
           <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
         </div>
         <div className="flex items-center gap-4">
