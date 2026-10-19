@@ -1,9 +1,9 @@
 export default function Loading() {
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
-      <header className="mb-8 border-b border-zinc-200 pb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">TubigWatch</h1>
-        <div className="mt-1 h-3 w-48 bg-zinc-200 animate-pulse rounded" />
+    <main className="mx-4 my-8 md:mx-auto max-w-6xl bg-white/80 rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
+      <header className="mb-8 border-b border-slate-200 pb-6">
+        <div className="relative h-12 w-48 mb-4 flex-shrink-0 rounded overflow-hidden bg-zinc-200 animate-pulse" />
+        <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
       </header>
 
       <p className="mb-6 text-zinc-700">
