@@ -75,7 +75,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
   const sourceLabel = isFixtures ? 'Source: Maynilad · Data mode: fixtures (not live)' : undefined;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-6xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
+    <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
       {freshness !== 'fresh' && (
         <p className="mb-6 rounded border border-slate-300 bg-white px-4 py-3 text-zinc-900">
           Source unavailable: {freshnessNote(freshness, sourceErrors)}

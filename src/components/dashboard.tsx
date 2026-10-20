@@ -5,6 +5,8 @@ import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Copy, Map as MapIcon, Search } from 'lucide-react';
+
+import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
@@ -72,36 +74,6 @@ function localTime(date: Date | string | null, now: Date): string {
   });
 }
 
-function relativeTime(target: Date, now: Date): string {
-  const diffMs = target.getTime() - now.getTime();
-  const hours = Math.floor(diffMs / 3_600_000);
-  if (hours < 1) {
-    const mins = Math.max(1, Math.round(diffMs / 60_000));
-    return `${mins} min`;
-  }
-  return hours === 1 ? '1 hr' : `${hours} hrs`;
-}
-
-function countdownText(outage: Outage, now: Date): string | null {
-  const status = computeStatus(outage, now);
-
-  if (status === 'scheduled') {
-    if (!outage.startsAt) return null;
-    const startsAt = new Date(outage.startsAt);
-    if (isNaN(startsAt.getTime()) || startsAt <= now) return null;
-    return `Starts in ~${relativeTime(startsAt, now)}`;
-  }
-
-  if (status === 'active') {
-    if (!outage.endsAt) return null;
-    const endsAt = new Date(outage.endsAt);
-    if (isNaN(endsAt.getTime()) || endsAt <= now) return null;
-    return `Restores in ~${relativeTime(endsAt, now)}`;
-  }
-
-  return null;
-}
-
 function statusCounts(outages: Outage[], now: Date): { active: number; scheduled: number } {
   let active = 0;
   let scheduled = 0;
@@ -133,8 +105,8 @@ function parseStatusFilter(raw: string | null): StatusFilter {
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
-    ? 'inline-flex items-center bg-white text-zinc-900 shadow-sm rounded-md px-4 py-1.5 text-sm font-medium'
-    : 'inline-flex items-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-md px-4 py-1.5 text-sm font-medium transition-all';
+    ? 'inline-flex items-center bg-white text-zinc-900 shadow-sm rounded-lg px-6 py-2.5 text-base font-medium'
+    : 'inline-flex items-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-6 py-2.5 text-base font-medium transition-all';
 }
 
 type DashboardProps = {
@@ -242,8 +214,8 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col gap-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-            <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
+            <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-zinc-500 font-medium hidden md:block">
@@ -283,12 +255,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-zinc-400" />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-6 h-6 text-zinc-400" />
             </div>
             <input
               type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
+              className="block w-full pl-12 pr-4 py-3 text-lg border border-zinc-300 rounded-xl leading-6 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
               value={searchQuery}
               onChange={(e) => {
@@ -354,7 +326,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         <ul className="space-y-12">
           {sortedCities.map((city) => (
             <li key={city}>
-              <h2 className="bg-white/90 inline-block px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-xl font-bold text-slate-800 mb-4">
+              <h2 className="bg-white/90 inline-block px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-bold text-slate-800 mb-4">
                 {city ?? 'Unknown'}
               </h2>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -397,10 +369,10 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                 : 'border-l-zinc-400'
                         }`}
                       >
-                        <div className="p-5 flex flex-col gap-3 h-full">
+                        <div className="p-6 flex flex-col gap-3 h-full">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${statusClass}`}>
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold uppercase tracking-wider ${statusClass}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                                 {badge}
                               </span>
@@ -409,12 +381,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               </span>
                             </div>
                             {timeRange && (
-                              <span className="text-sm text-zinc-500 font-medium text-right">{timeRange}</span>
+                              <span className="text-base text-zinc-500 font-medium text-right">{timeRange}</span>
                             )}
                           </div>
 
                           {outage.reason && (
-                            <p className="text-lg font-semibold text-zinc-900 mt-3">{outage.reason}</p>
+                            <p className="text-2xl font-bold text-zinc-900 mt-3">{outage.reason}</p>
                           )}
 
                           {allBarangays.length > 0 && (
@@ -422,7 +394,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               {allBarangays.map((b) => (
                                 <span
                                   key={b}
-                                  className="inline-block bg-zinc-100 text-zinc-600 text-[11px] px-2 py-0.5 rounded"
+                                  className="inline-block bg-zinc-100 text-zinc-600 text-sm px-3 py-1.5 rounded-md"
                                 >
                                   Brgy. {b}
                                 </span>
@@ -435,9 +407,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                           )}
 
                           <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                            {countdownText(outage, now) && (
-                              <p className="text-sm text-zinc-700">{countdownText(outage, now)}</p>
+                            {status === 'scheduled' && new Date(outage.startsAt).getTime() > now.getTime() && (
+                              <LiveCountdown targetDate={outage.startsAt} prefix="Starts in" />
                             )}
+                            {status === 'active' &&
+                              outage.endsAt &&
+                              new Date(outage.endsAt).getTime() > now.getTime() && (
+                                <LiveCountdown targetDate={outage.endsAt} prefix="Restores in" />
+                              )}
                             <button
                               type="button"
                               aria-label="Copy outage details"
