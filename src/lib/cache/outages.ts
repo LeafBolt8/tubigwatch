@@ -8,20 +8,40 @@ import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 
 
 export function normalizeOutages(outages: Outage[]): Outage[] {
-  return outages.map((outage) => {
-    const newAreas = outage.affectedAreas.map((area) => {
-      const newBarangays = area.barangays.map((b) => {
+  const result: Outage[] = [];
+
+  for (const outage of outages) {
+    // Group barangays by their corrected city.
+    const barangaysByCity: Record<string, typeof outage.affectedAreas[0]['barangays']> = {};
+
+    for (const area of outage.affectedAreas) {
+      for (const b of area.barangays) {
         const cleanName = b.name.replace(/^Brgys?\.\s*/i, '').trim().toLowerCase();
-        const correctCity = BARANGAY_TO_CITY[cleanName];
-        if (correctCity) {
-          return { ...b, city: correctCity };
+        const correctCity = BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown';
+
+        if (!barangaysByCity[correctCity]) {
+          barangaysByCity[correctCity] = [];
         }
-        return b;
+
+        // Avoid duplicate barangays in the same city.
+        if (!barangaysByCity[correctCity].some((existing) => existing.name === b.name)) {
+          barangaysByCity[correctCity].push({ ...b, city: correctCity });
+        }
+      }
+    }
+
+    // Explode into multiple outage objects, one per city.
+    for (const [city, barangays] of Object.entries(barangaysByCity)) {
+      result.push({
+        ...outage,
+        id: `${outage.id}-${city.replace(/\s+/g, '-').toLowerCase()}`,
+        city,
+        affectedAreas: [{ barangays }],
       });
-      return { ...area, barangays: newBarangays };
-    });
-    return { ...outage, affectedAreas: newAreas };
-  });
+    }
+  }
+
+  return result;
 }
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
