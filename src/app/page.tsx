@@ -69,10 +69,8 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
 
   const { outages, freshness, sourceErrors } = pageData;
 
-  // The banner is reserved for a Maynilad failure: Manila Water is intentionally paused for v1 and
-  // its notice belongs in a quiet footer line, not an alarm.
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
-  const sourceLabel = isFixtures ? 'Source: Maynilad · Data mode: fixtures (not live)' : undefined;
+  const sourceLabel = isFixtures ? 'Source: Maynilad + Manila Water · Data mode: fixtures (not live)' : undefined;
 
   return (
     <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
@@ -98,8 +96,6 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
         Verify against mayniladwater.com.ph before relying on this data.
       </footer>
-
-      <p className="text-xs text-zinc-400 mt-8">Note: Manila Water data is temporarily paused.</p>
     </main>
   );
 }

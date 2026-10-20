@@ -5,7 +5,7 @@ import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import type { Outage } from '@/lib/schemas/outage';
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
-// const MW_URL = 'https://www.manilawater.com/customers/service-advisories'; // paused: Manila Water extraction removed for v1
+const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
 
 function dedupById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -68,11 +68,11 @@ export const getCachedGeminiOutages = unstable_cache(
   async () => {
     let mayniladOutages: Outage[] = [];
     let mayniladError: string | null = null;
-
-    const manilaWater = { outages: [], error: 'Manila Water extraction is paused for v1 (Cloudflare block).' };
+    let manilaWaterOutages: Outage[] = [];
+    let manilaWaterError: string | null = null;
 
     try {
-      const geminiResult = await extractOutagesFromUrl(MAYNI_URL);
+      const geminiResult = await extractOutagesFromUrl(MAYNI_URL, 'maynilad');
       if (geminiResult.error) {
         throw new Error(geminiResult.error);
       }
@@ -91,14 +91,21 @@ export const getCachedGeminiOutages = unstable_cache(
       }
     }
 
+    const manilaWater = await extractOutagesFromUrl(MW_URL, 'manila-water');
+    if (manilaWater.error) {
+      manilaWaterError = manilaWater.error;
+    } else {
+      manilaWaterOutages = manilaWater.outages;
+    }
+
     const merged = dedupById<Outage>([
       ...mayniladOutages,
-      ...manilaWater.outages,
+      ...manilaWaterOutages,
     ]);
 
     const errors: string[] = [];
-    if (mayniladError) errors.push(mayniladError);
-    if (manilaWater.error) errors.push(`manila-water: ${manilaWater.error}`);
+    if (mayniladError) errors.push(`maynilad: ${mayniladError}`);
+    if (manilaWaterError) errors.push(`manila-water: ${manilaWaterError}`);
 
     return { outages: merged, errors };
   },

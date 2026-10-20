@@ -14,8 +14,15 @@ export type GeminiExtractResult = {
   error: string | null;
 };
 
-export async function extractOutagesFromUrl(url: string): Promise<GeminiExtractResult> {
+export async function extractOutagesFromUrl(
+  url: string,
+  concessionaire: 'maynilad' | 'manila-water' = 'maynilad',
+): Promise<GeminiExtractResult> {
+  const operator = concessionaire === 'manila-water' ? 'Manila Water' : 'Maynilad';
+
   const prompt = `Extract all water service interruptions from this page into the provided JSON schema. If no outages are present, return an empty array. The URL is: ${url}
+
+IMPORTANT: This page belongs to ${operator}. Set the \`concessionaire\` field to "${concessionaire}" on every outage you extract.
 
 IMPORTANT: The \`affectedAreas\` field must be an array. Each barangay must be a separate object in the \`barangays\` array. If the website says 'Brgys. 36, 162 and 164', split them into 3 separate barangay objects (e.g., name: '36', name: '162', name: '164'). If it says 'Brgys. 198 to 220', expand the range into individual barangay objects (e.g., '198', '199', '200'). Do not leave a comma-separated list inside a single object.
 

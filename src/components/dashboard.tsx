@@ -253,6 +253,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           <p className="text-sm font-medium text-zinc-600">Some outages have an unknown status.</p>
         )}
 
+        {sourceErrors.some((e) => e.startsWith('manila-water:')) && (
+          <p className="text-sm font-medium text-amber-800">
+            Manila Water advisories could not be fetched right now.
+          </p>
+        )}
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -376,8 +382,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                 <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                                 {badge}
                               </span>
-                              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider">
-                                Maynilad
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider ${
+                                  outage.concessionaire === 'manila-water'
+                                    ? 'bg-cyan-50 text-cyan-700'
+                                    : 'bg-blue-50 text-blue-700'
+                                }`}
+                              >
+                                {outage.concessionaire === 'manila-water' ? 'Manila Water' : 'Maynilad'}
                               </span>
                             </div>
                             {timeRange && (

@@ -95,7 +95,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
 
   const sourceLine =
     isFixtures
-      ? `Source: Maynilad · Data mode: fixtures (not live)`
+      ? `Source: Maynilad + Manila Water · Data mode: fixtures (not live)`
       : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
@@ -135,7 +135,6 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
         Verify against mayniladwater.com.ph before relying on this data.
       </footer>
 
-      <p className="text-xs text-zinc-400 mt-8">Note: Manila Water data is temporarily paused.</p>
     </main>
   );
 }
