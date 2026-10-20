@@ -9,7 +9,7 @@ const htmlCommentRE = /<!--[\s\S]*?-->/;
 
 export const SourceProvenanceSchema = z.object({
   url: z.string(),
-  fetchedAt: z.date(),
+  fetchedAt: z.coerce.date(),
   raw: z.string().optional(),
 });
 
@@ -30,8 +30,8 @@ export const OutageSchema = z
         { message: 'reason must not contain HTML tags or comments' },
       ),
     startsAt: z.coerce.date(),
-    endsAt: z.date().optional(),
-    estimatedRestoration: z.date().optional(),
+    endsAt: z.coerce.date().optional(),
+    estimatedRestoration: z.coerce.date().optional(),
     affectedAreas: z.array(AffectedAreaSchema),
     source: SourceProvenanceSchema,
     confidence: ConfidenceSchema,
