@@ -390,11 +390,11 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                           )}
 
                           {allBarangays.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-2">
                               {allBarangays.map((b) => (
                                 <span
                                   key={b}
-                                  className="inline-block bg-zinc-100 text-zinc-600 text-sm px-3 py-1.5 rounded-md"
+                                  className="inline-block bg-zinc-100 text-zinc-700 text-base font-medium px-4 py-2 rounded-lg"
                                 >
                                   Brgy. {b}
                                 </span>
