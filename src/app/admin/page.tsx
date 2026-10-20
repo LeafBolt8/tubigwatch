@@ -31,8 +31,16 @@ export default function AdminPage() {
 
       if (!response.ok) {
         setStatus('error');
-        setMessage(data.error ?? 'Request failed.');
-        return;
+
+      const errorData = data as { error?: string; issues?: Array<{ path: (string | number)[]; message: string }> };
+      let errorMessage = errorData.error ?? 'Failed to submit';
+
+      if (errorData.issues) {
+        errorMessage += '\n\nDetails:\n' + errorData.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
+      }
+
+      setMessage(errorMessage);
+      return;
       }
 
       setStatus('ok');

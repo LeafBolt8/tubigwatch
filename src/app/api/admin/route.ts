@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
 
   const parsed = OutageSchema.array().safeParse(body);
   if (!parsed.success) {
+    console.error('Admin Override Validation Failed:', JSON.stringify(parsed.error.issues, null, 2));
+
     return NextResponse.json(
       { error: 'body must be a JSON array of outage objects matching the schema.', issues: parsed.error.issues },
       { status: 400 },
