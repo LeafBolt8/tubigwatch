@@ -4,7 +4,6 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
 import { Copy, Map as MapIcon, Search } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
@@ -206,15 +205,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col gap-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
-            <div className="relative h-24 w-auto flex-shrink-0 overflow-hidden">
-              <Image
-                src="/logo.jpg"
-                alt="TubigWatch"
-                width={2752}
-                height={1536}
-                className="h-full w-auto object-contain mix-blend-multiply"
-              />
-            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
             <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
           </div>
           <div className="flex items-center gap-4">
