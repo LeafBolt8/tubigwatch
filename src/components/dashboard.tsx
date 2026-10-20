@@ -12,16 +12,19 @@ import Link from 'next/link';
 type StatusFilter = 'all' | 'active' | 'scheduled';
 
 function computeStatus(outage: Outage, now: Date): OutageStatus {
+  // 1. Check if it has already ended — always restore, regardless of raw status.
+  const endsAt = outage.endsAt ? new Date(outage.endsAt) : null;
+  if (endsAt && endsAt <= now) {
+    return 'restored';
+  }
+
+  // 2. Fallback to raw status.
   if (outage.status) return outage.status;
 
-  const startsAt = outage.startsAt ?? null;
-  const endsAt = outage.endsAt ?? null;
+  // 3. Fallback to time-based logic.
+  const startsAt = outage.startsAt ? new Date(outage.startsAt) : null;
   if (!startsAt && !endsAt) return 'unknown';
-
   const started = startsAt !== null && startsAt <= now;
-  const ended = endsAt !== null && endsAt <= now;
-
-  if (ended) return 'restored';
   if (outage.scheduled) return 'scheduled';
   if (started) return 'active';
   return 'unknown';
@@ -192,10 +195,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
   const groupedByCity = new Map<string, Outage[]>();
   for (const outage of filteredOutages) {
-    const firstCity = splitCityKey(primaryCityKey(outage));
-    const grouped = groupedByCity.get(firstCity) ?? [];
-    grouped.push(outage);
-    groupedByCity.set(firstCity, grouped);
+    const cities = splitCityKey(primaryCityKey(outage));
+    const cityList = cities.split(',').map((c) => c.trim()).filter(Boolean);
+    for (const city of cityList) {
+      const grouped = groupedByCity.get(city) ?? [];
+      grouped.push(outage);
+      groupedByCity.set(city, grouped);
+    }
   }
 
   const sortedCities = Array.from(groupedByCity.keys()).sort((a, b) => a.localeCompare(b));
