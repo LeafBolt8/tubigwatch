@@ -228,7 +228,9 @@ describe('rowToPartialOutage', () => {
     expect(row.startsAt).toBeNull();
     expect(row.reason).toBe('Something');
     expect(row.status).toBe('active');
-  });  test('fetchMayniladOutages returns separate outages for rows from different cities', async () => {
+  });
+
+  test('fetchMayniladOutages returns separate outages for rows from different cities', async () => {
     const fragment =
       '<table class="advisory-table"><thead><tr><th>City</th><th>Barangay</th><th>Specific Area</th><th>From</th><th>To</th><th>Time</th><th>Reason</th></tr></thead><tbody>' +
       '<tr><td>Pasay City</td><td>Brgy. BF Homes</td><td>BF Homes Service Center</td><td>October 15, 2026</td><td>October 15, 2026</td><td>6:00 AM to 6:00 PM</td><td>Water Service Interruption</td></tr>' +
