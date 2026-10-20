@@ -125,11 +125,24 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
+  const cityParam = searchParams.get('city');
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (cityParam) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`city-${encodeURIComponent(cityParam)}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [cityParam]);
 
   const updateUrl = (newStatus: StatusFilter, newQuery: string) => {
     if (typeof window === 'undefined') return;
@@ -354,9 +367,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         <ul className="space-y-12">
           {sortedCities.map((city) => (
             <li key={city}>
-              <h2 className="bg-white/90 inline-block px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-bold text-slate-800 mb-4">
-                {city ?? 'Unknown'}
-              </h2>
+              <h2
+              id={`city-${encodeURIComponent(city)}`}
+              className="bg-white/90 inline-block px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-xl font-bold text-slate-800 mb-4 scroll-mt-24"
+            >
+              {city ?? 'Unknown'}
+            </h2>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {groupedByCity.get(city)?.map((outage) => {
                   const status = computeStatus(outage, now);

@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Outage } from '@/lib/schemas/outage';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
+import Link from 'next/link';
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: () => string })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -92,6 +93,12 @@ export default function OutageMap({ outages }: OutageMapProps) {
                 <div className="text-sm">
                   <p className="font-bold">{city}</p>
                   <p>{count} outage{count === 1 ? '' : 's'} in {city}</p>
+                  <Link
+                    href={`/?city=${encodeURIComponent(city)}`}
+                    className="mt-2 inline-block bg-blue-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    View Details
+                  </Link>
                 </div>
               </Popup>
             </Marker>
