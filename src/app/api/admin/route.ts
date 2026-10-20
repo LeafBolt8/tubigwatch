@@ -17,34 +17,47 @@ function redactSecret(raw: object): object {
   return out;
 }
 
+function unauthorized(body: { error: string }) {
+  return NextResponse.json(body, { status: 401 });
+}
 
+function serverError(message: string) {
+  return NextResponse.json({ error: message }, { status: 500 });
+}
 
+function badRequest(errorMessage: string, issues?: Array<{ path: (string | number)[]; message: string }>) {
+  return NextResponse.json(
+    { error: errorMessage, issues },
+    { status: 400 },
+  );
+}
+
+function ok(body: { ok: true; servedAt: string }) {
+  return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });
+}
 
 export async function POST(request: NextRequest) {
   const bearer = request.headers.get('authorization');
   if (process.env.GEMINI_API_KEY) {
     if (bearer !== `Bearer ${process.env.GEMINI_API_KEY}`) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return unauthorized({ error: 'Unauthorized. Please check your GEMINI_API_KEY.' });
     }
   } else {
-    return NextResponse.json({ error: 'GEMINI_API_KEY is not configured on this project.' }, { status: 500 });
+    return serverError('GEMINI_API_KEY is not configured on this project.');
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    return badRequest('Invalid JSON body.');
   }
 
   const parsed = OutageSchema.array().safeParse(body);
   if (!parsed.success) {
     console.error('Admin Override Validation Failed:', JSON.stringify(parsed.error.issues, null, 2));
 
-    return NextResponse.json(
-      { error: 'body must be a JSON array of outage objects matching the schema.', issues: parsed.error.issues },
-      { status: 400 },
-    );
+    return badRequest('body must be a JSON array of outage objects matching the schema.', parsed.error.issues);
   }
 
   // Backdate servedAt so the stale Gemini cache entry is always older than manual rows.
@@ -63,21 +76,20 @@ export async function POST(request: NextRequest) {
     }
   } catch (writeErr) {
     const message = writeErr instanceof Error ? writeErr.message : String(writeErr);
-    return NextResponse.json(
-      { error: `Could not save manual overrides to KV: ${message}` },
-      { status: 500 },
-    );
+    return serverError(`Could not save manual overrides to KV: ${message}`);
   }
 
-  return NextResponse.json({ ok: true, servedAt });
+  return ok({ ok: true, servedAt });
 }
 
 export async function GET(request: NextRequest) {
   const bearer = request.headers.get('authorization');
   if (process.env.GEMINI_API_KEY) {
     if (bearer !== `Bearer ${process.env.GEMINI_API_KEY}`) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return unauthorized({ error: 'Unauthorized. Please check your GEMINI_API_KEY.' });
     }
+  } else {
+    return serverError('GEMINI_API_KEY is not configured on this project.');
   }
 
   try {
@@ -88,9 +100,8 @@ export async function GET(request: NextRequest) {
     );
   } catch (readErr) {
     const message = readErr instanceof Error ? readErr.message : String(readErr);
-    return NextResponse.json(
-      { error: `Could not read manual overrides from KV: ${message}` },
-      { status: 500 },
-    );
+    return serverError(`Could not read manual overrides from KV: ${message}`);
   }
 }
+
+

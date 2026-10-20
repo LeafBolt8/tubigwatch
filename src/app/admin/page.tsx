@@ -25,22 +25,25 @@ export default function AdminPage() {
           Authorization: `Bearer ${encodeURIComponent(password)}`,
         },
         body: jsonData,
-      });
-
-      const data = await response.json();
+      });      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        data = { error: 'Server returned a non-JSON response. Check your network tab.', };
+      }
 
       if (!response.ok) {
         setStatus('error');
 
-      const errorData = data as { error?: string; issues?: Array<{ path: (string | number)[]; message: string }> };
-      let errorMessage = errorData.error ?? 'Failed to submit';
+        const errorData = data as { error?: string; issues?: Array<{ path: (string | number)[]; message: string }> };
+        let errorMessage = errorData.error ?? 'Failed to submit';
 
-      if (errorData.issues) {
-        errorMessage += '\n\nDetails:\n' + errorData.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
-      }
+        if (errorData.issues) {
+          errorMessage += '\n\nDetails:\n' + errorData.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
+        }
 
-      setMessage(errorMessage);
-      return;
+        setMessage(errorMessage);
+        return;
       }
 
       setStatus('ok');
