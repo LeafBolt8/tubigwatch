@@ -26,7 +26,9 @@ IMPORTANT: This page belongs to ${operator}. Set the \`concessionaire\` field to
 
 IMPORTANT: The \`affectedAreas\` field must be an array. Each barangay must be a separate object in the \`barangays\` array. If the website says 'Brgys. 36, 162 and 164', split them into 3 separate barangay objects (e.g., name: '36', name: '162', name: '164'). If it says 'Brgys. 198 to 220', expand the range into individual barangay objects (e.g., '198', '199', '200'). Do not leave a comma-separated list inside a single object.
 
-IMPORTANT: You must extract data from BOTH the 'Emergency Water Service Interruption Schedule' AND the 'Scheduled Water Service Interruptions' tables. Do not skip the Scheduled table. Ensure you capture every row from both tables.`;
+IMPORTANT: You must extract data from BOTH the 'Emergency Water Service Interruption Schedule' AND the 'Scheduled Water Service Interruptions' tables. Do not skip the Scheduled table. Ensure you capture every row from both tables.
+
+IMPORTANT: Do not combine different cities into a single outage. Each distinct row in the table must be its own outage object. If two rows share the same reason and date/time window but are in different cities, keep them as separate outages.`;
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
