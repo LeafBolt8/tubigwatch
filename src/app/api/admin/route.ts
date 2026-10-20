@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 
 import { OutageSchema } from '@/lib/schemas/outage';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '',
+});
 
 function redactSecret(raw: object): object {
   const out: Record<string, unknown> = {};
@@ -66,7 +71,7 @@ export async function POST(request: NextRequest) {
   const rows = parsed.data.map((o) => redactSecret(o));
 
   try {
-    await kv.set('manual-outages', { servedAt, rows });
+    await redis.set('manual-outages', { servedAt, rows });
 
     try {
       revalidateTag('gemini-outages');
@@ -93,7 +98,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await kv.get<{ servedAt: string; rows: unknown[] }>('manual-outages');
+    const data = await redis.get<{ servedAt: string; rows: unknown[] }>('manual-outages');
     return NextResponse.json(
       data ?? { servedAt: new Date().toISOString(), rows: [] },
       { headers: { 'Cache-Control': 'no-store' } },
