@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { revalidateTag } from 'next/cache';
+
 import { OutageSchema } from '@/lib/schemas/outage';
 import { kv } from '@vercel/kv';
 
@@ -50,6 +52,13 @@ export async function POST(request: NextRequest) {
 
   try {
     await kv.set('manual-outages', { servedAt, rows });
+
+    try {
+      revalidateTag('gemini-outages');
+    } catch (revalidateErr) {
+      const message = revalidateErr instanceof Error ? revalidateErr.message : String(revalidateErr);
+      console.warn('admin: failed to revalidate gemini-outages tag after manual override:', message);
+    }
   } catch (writeErr) {
     const message = writeErr instanceof Error ? writeErr.message : String(writeErr);
     return NextResponse.json(
