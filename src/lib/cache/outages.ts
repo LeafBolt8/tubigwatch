@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache';
 
 import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
 import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
+import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
@@ -91,17 +92,22 @@ export const getCachedGeminiOutages = unstable_cache(
       }
     }
 
-    const manilaWater = await extractOutagesFromUrl(MW_URL, 'manila-water');
+    const manilaWater = await extractOutagesFromUrl(MW_URL);
     if (manilaWater.error) {
       manilaWaterError = manilaWater.error;
     } else {
       manilaWaterOutages = manilaWater.outages;
     }
 
-    const merged = dedupById<Outage>([
-      ...mayniladOutages,
-      ...manilaWaterOutages,
-    ]);
+    const manualOutages = await readManualOutages();
+    if (manualOutages.length > 0) {
+      const mergedManual = dedupById<Outage>([...mayniladOutages, ...manilaWaterOutages, ...manualOutages]);
+      const manualErrors = manualOutages.map((o) => `${o.concessionaire}: manual override`);
+      const manualError = `Manual overrides active (${manualOutages.length} rows)`;
+      return { outages: mergedManual, errors: [...manualErrors, manualError] };
+    }
+
+    const merged = dedupById<Outage>([...mayniladOutages, ...manilaWaterOutages]);
 
     const errors: string[] = [];
     if (mayniladError) errors.push(`maynilad: ${mayniladError}`);
