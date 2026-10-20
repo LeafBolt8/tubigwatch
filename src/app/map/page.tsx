@@ -99,7 +99,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
       : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
+    <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
       <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
