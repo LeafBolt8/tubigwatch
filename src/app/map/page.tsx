@@ -19,14 +19,19 @@ type PageData = {
 };
 
 function computeStatus(outage: Outage, now: Date): OutageStatus {
+  // Mirror the dashboard rule: a past endsAt always restores, regardless of raw status.
+  const endsAt = outage.endsAt ? new Date(outage.endsAt) : null;
+  if (endsAt && endsAt <= now) {
+    return 'restored';
+  }
   if (outage.status) return outage.status;
 
   const startsAt = outage.startsAt ?? null;
-  const endsAt = outage.endsAt ?? null;
-  if (!startsAt && !endsAt) return 'unknown';
+  const endsAtLocal = outage.endsAt ?? null;
+  if (!startsAt && !endsAtLocal) return 'unknown';
 
   const started = startsAt !== null && startsAt <= now;
-  const ended = endsAt !== null && endsAt <= now;
+  const ended = endsAtLocal !== null && endsAtLocal <= now;
 
   if (ended) return 'restored';
   if (outage.scheduled) return 'scheduled';
@@ -90,13 +95,17 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
   }
 
   const { outages, freshness, sourceErrors } = pageData;
-  const { active, scheduled } = statusCounts(outages, now);
-  const statusUnknown = outages.some((o) => computeStatus(o, now) === 'unknown');
+  const visibleOutages = outages.filter((o) => {
+    const status = computeStatus(o, now);
+    return status === 'active' || status === 'scheduled' || status === 'unknown';
+  });
+  const { active, scheduled } = statusCounts(visibleOutages, now);
+  const statusUnknown = visibleOutages.some((o) => computeStatus(o, now) === 'unknown');
 
   const sourceLine =
     isFixtures
       ? `Source: Maynilad + Manila Water · Data mode: fixtures (not live)`
-      : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
+      : `Source: Maynilad · AI Extraction · Updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
     <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
@@ -118,7 +127,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
         </div>
 
         <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-medium text-zinc-600">
-          {active} active · {scheduled} scheduled · {outages.length} total
+          {active} active · {scheduled} scheduled · {visibleOutages.length} shown
           {statusUnknown ? ' · some status unknown' : ''}
         </p>
       </div>
@@ -129,7 +138,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
         </p>
       )}
 
-      <MapClient outages={outages} />
+      <MapClient outages={visibleOutages} />
 
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
         Verify against mayniladwater.com.ph before relying on this data.

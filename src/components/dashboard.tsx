@@ -119,11 +119,17 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ outages, sourceErrors, sourceLabel }: DashboardProps) {
-  const now = new Date();
+  const currentTime = new Date();
+  const [now, setNow] = useState(currentTime);
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const updateUrl = (newStatus: StatusFilter, newQuery: string) => {
     if (typeof window === 'undefined') return;
@@ -171,7 +177,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
-  const filteredOutages = outages.filter((outage) => {
+  const activeAndUpcoming = outages.filter((outage) => {
+    const status = computeStatus(outage, now);
+    return status === 'active' || status === 'scheduled' || status === 'unknown';
+  });
+
+  const filteredOutages = activeAndUpcoming.filter((outage) => {
     const matchesStatus = statusFilter === 'all' || computeStatus(outage, now) === statusFilter;
 
     if (!matchesStatus) return false;
@@ -189,9 +200,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     return reasonMatch || cityMatch || barangayMatch;
   });
 
-  const { active, scheduled } = statusCounts(outages, now);
-  const total = outages.length;
-  const statusUnknown = outages.some((o) => computeStatus(o, now) === 'unknown');
+  const { active, scheduled } = statusCounts(activeAndUpcoming, now);
+  const total = activeAndUpcoming.length;
+  const statusUnknown = activeAndUpcoming.some((o) => computeStatus(o, now) === 'unknown');
 
   const groupedByCity = new Map<string, Outage[]>();
   for (const outage of filteredOutages) {
@@ -227,7 +238,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <span className="text-sm text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
-                  Source: Maynilad · Last updated:{' '}
+                  Source: Maynilad · Updated:{' '}
                   {now.toLocaleTimeString('en-PH', {
                     timeZone: 'Asia/Manila',
                     hour: '2-digit',
@@ -319,7 +330,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         </div>
       </div>
 
-      {filteredOutages.length === 0 ? (
+      {filteredOutages.length === 0 && activeAndUpcoming.length === 0 ? (
+        <div className="text-center py-16 bg-white/95 rounded-2xl border border-slate-200 mt-6 shadow-sm">
+          <p className="text-zinc-900 text-2xl font-bold">All clear!</p>
+          <p className="text-zinc-600 mt-2 text-lg">There are currently no active or scheduled water outages.</p>
+        </div>
+      ) : filteredOutages.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-zinc-200 mt-6">
           <p className="text-zinc-500 text-lg">No outages found matching your criteria.</p>
           <button
@@ -376,9 +392,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                             ? 'border-l-red-500'
                             : status === 'scheduled'
                               ? 'border-l-amber-500'
-                              : status === 'restored'
-                                ? 'border-l-emerald-500'
-                                : 'border-l-zinc-400'
+                              : 'border-l-zinc-400'
                         }`}
                       >
                         <div className="p-6 flex flex-col gap-3 h-full">
