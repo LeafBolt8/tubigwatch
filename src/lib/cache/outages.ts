@@ -5,6 +5,7 @@ import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
 
+
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
 const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
 

@@ -1,21 +1,18 @@
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-
+import { kv } from '@vercel/kv';
 import { OutageSchema } from '@/lib/schemas/outage';
 import type { Outage } from '@/lib/schemas/outage';
 
-const MANUAL_PATH = join(process.cwd(), 'manual-outages.json');
-
 export async function readManualOutages(): Promise<Outage[]> {
-  if (!existsSync(MANUAL_PATH)) return [];
+  try {
+    const data = (await kv.get<unknown>('manual-outages')) ?? null;
+    if (!data) return [];
 
-  const raw = await readFile(MANUAL_PATH, 'utf8');
-  const parsed = JSON.parse(raw) as { servedAt: string; rows: unknown[] } | null;
-  if (!parsed || !Array.isArray(parsed.rows)) return [];
+    const parsed = OutageSchema.array().safeParse(data);
+    if (!parsed.success) return [];
 
-  const result = OutageSchema.array().safeParse(parsed.rows);
-  if (!result.success) return [];
-
-  return result.data;
+    return parsed.data;
+  } catch (error) {
+    console.error('Failed to read manual outages from KV:', error);
+    return [];
+  }
 }
