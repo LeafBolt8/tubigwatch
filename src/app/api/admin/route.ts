@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 import { OutageSchema } from '@/lib/schemas/outage';
 import { Redis } from '@upstash/redis';
@@ -78,6 +78,13 @@ export async function POST(request: NextRequest) {
     } catch (revalidateErr) {
       const message = revalidateErr instanceof Error ? revalidateErr.message : String(revalidateErr);
       console.warn('admin: failed to revalidate gemini-outages tag after manual override:', message);
+    }
+
+    try {
+      revalidatePath('/');
+    } catch (revalidatePathErr) {
+      const message = revalidatePathErr instanceof Error ? revalidatePathErr.message : String(revalidatePathErr);
+      console.warn('admin: failed to revalidate / after manual override:', message);
     }
   } catch (writeErr) {
     const message = writeErr instanceof Error ? writeErr.message : String(writeErr);

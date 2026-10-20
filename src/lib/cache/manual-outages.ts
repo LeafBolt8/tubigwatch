@@ -9,15 +9,17 @@ const redis = new Redis({
 
 export async function readManualOutages(): Promise<Outage[]> {
   try {
-    const data = (await redis.get<unknown>('manual-outages')) ?? null;
+    const data = await redis.get<{ servedAt: string; rows: unknown[] }>('manual-outages');
     if (!data) return [];
 
-    const parsed = OutageSchema.array().safeParse(data);
-    if (!parsed.success) return [];
+    // If someone stored the raw array directly, use it; otherwise unwrap the { servedAt, rows } shape.
+    const rowsToParse = Array.isArray(data) ? data : data.rows;
+    if (!rowsToParse) return [];
 
-    return parsed.data;
+    const parsed = OutageSchema.array().safeParse(rowsToParse);
+    return parsed.success ? parsed.data : [];
   } catch (error) {
-    console.error('Failed to read manual outages from KV:', error);
+    console.error('Failed to read manual outages from Redis:', error);
     return [];
   }
 }
