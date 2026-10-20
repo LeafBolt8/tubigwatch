@@ -3,7 +3,7 @@
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Copy, Map as MapIcon, Search } from 'lucide-react';
 import Link from 'next/link';
 
@@ -146,21 +146,40 @@ type DashboardProps = {
 export default function Dashboard({ outages, sourceErrors, sourceLabel }: DashboardProps) {
   const now = new Date();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
 
   const updateUrl = (newStatus: StatusFilter, newQuery: string) => {
+    if (typeof window === 'undefined') return;
+
     // Carry unrelated params (notably the `source=fixtures` dev/test switch) instead of dropping them.
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(window.location.search);
     params.delete('status');
     params.delete('q');
     if (newStatus !== 'all') params.set('status', newStatus);
     if (newQuery.trim()) params.set('q', newQuery.trim());
+
     const queryString = params.toString();
-    router.replace(queryString ? `/?${queryString}` : '/', { scroll: false });
+    const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}`;
+
+    // replaceState keeps the URL in sync without a router navigation, so typing costs no requests.
+    window.history.replaceState(null, '', newUrl);
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSearchQuery(params.get('q') || '');
+      setStatusFilter(parseStatusFilter(params.get('status')));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     const handleOffline = () => setIsOffline(true);
