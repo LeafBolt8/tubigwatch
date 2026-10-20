@@ -4,7 +4,25 @@ import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
 import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
+import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 
+
+function normalizeOutages(outages: Outage[]): Outage[] {
+  return outages.map((outage) => {
+    const newAreas = outage.affectedAreas.map((area) => {
+      const newBarangays = area.barangays.map((b) => {
+        const cleanName = b.name.replace(/^Brgys?\.\s*/i, '').trim().toLowerCase();
+        const correctCity = BARANGAY_TO_CITY[cleanName];
+        if (correctCity) {
+          return { ...b, city: correctCity };
+        }
+        return b;
+      });
+      return { ...area, barangays: newBarangays };
+    });
+    return { ...outage, affectedAreas: newAreas };
+  });
+}
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
 const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
@@ -114,7 +132,7 @@ export const getCachedGeminiOutages = unstable_cache(
     if (mayniladError) errors.push(`maynilad: ${mayniladError}`);
     if (manilaWaterError) errors.push(`manila-water: ${manilaWaterError}`);
 
-    return { outages: merged, errors };
+    return { outages: normalizeOutages(merged), errors };
   },
   ['gemini-outages'],
   { revalidate: 86400, tags: ['gemini-outages'] },
