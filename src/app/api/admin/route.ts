@@ -15,50 +15,8 @@ function redactSecret(raw: object): object {
   return out;
 }
 
-function snapshotRecord(record: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (value && typeof value === 'object' && !(value instanceof Date) && !(value instanceof Array)) {
-      out[key] = snapshotRecord(value as Record<string, unknown>);
-      continue;
-    }
-    if (typeof value === 'string' && (value.startsWith('$2b$') || value.startsWith('sk_live_') || value.startsWith('sk_live-') || value.startsWith('pk_live_') || value.startsWith('pk_live-'))) {
-      out[key] = '[REDACTED]';
-      continue;
-    }
-    out[key] = value;
-  }
-  return out;
-}
 
-function sanitizePayload(values: unknown): unknown {
-  if (Array.isArray(values)) {
-    return values.map(snapshotRecord);
-  }
 
-  if (value && typeof value === 'object' && !(value instanceof Date)) {
-    return snapshotRecord(value as Record<string, unknown>);
-  }
-
-  return value;
-}
-
-function safeReadKV<T>(key: string): Promise<T | null> {
-  try {
-    return await kv.get<T>(key);
-  } catch (err) {
-    console.error(`KV read failed for key ${key}:`, err);
-    return null;
-  }
-}
-
-function safeWriteKV(key: string, value: unknown): Promise<void> {
-  try {
-    return kv.set(key, sanitizeBlurhash(value));
-  } catch (err) {
-    return Promise.reject(err);
-  }
-}
 
 export async function POST(request: NextRequest) {
   const bearer = request.headers.get('authorization');
@@ -112,7 +70,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await safeReadKV<'manual-outages'>('manual-outages');
+    const data = await kv.get<{ servedAt: string; rows: unknown[] }>('manual-outages');
     return NextResponse.json(
       data ?? { servedAt: new Date().toISOString(), rows: [] },
       { headers: { 'Cache-Control': 'no-store' } },
