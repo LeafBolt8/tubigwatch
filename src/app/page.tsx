@@ -2,6 +2,8 @@ import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
 
+import { Suspense } from 'react';
+
 import Dashboard from '@/components/dashboard';
 
 export const maxDuration = 300;
@@ -89,7 +91,9 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         </div>
       )}
 
-      <Dashboard outages={outages} sourceErrors={sourceErrors} sourceLabel={sourceLabel} />
+      <Suspense fallback={<p>Loading...</p>}>
+        <Dashboard outages={outages} sourceErrors={sourceErrors} sourceLabel={sourceLabel} />
+      </Suspense>
 
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
         Verify against mayniladwater.com.ph before relying on this data.

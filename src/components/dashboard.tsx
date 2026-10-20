@@ -3,6 +3,7 @@
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Copy, Map as MapIcon, Search } from 'lucide-react';
 import Link from 'next/link';
 
@@ -125,6 +126,10 @@ function splitCityKey(raw: string): string {
   return parts.join(', ');
 }
 
+function parseStatusFilter(raw: string | null): StatusFilter {
+  return raw === 'active' || raw === 'scheduled' ? raw : 'all';
+}
+
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
@@ -140,9 +145,22 @@ type DashboardProps = {
 
 export default function Dashboard({ outages, sourceErrors, sourceLabel }: DashboardProps) {
   const now = new Date();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
+
+  const updateUrl = (newStatus: StatusFilter, newQuery: string) => {
+    // Carry unrelated params (notably the `source=fixtures` dev/test switch) instead of dropping them.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('status');
+    params.delete('q');
+    if (newStatus !== 'all') params.set('status', newStatus);
+    if (newQuery.trim()) params.set('q', newQuery.trim());
+    const queryString = params.toString();
+    router.replace(queryString ? `/?${queryString}` : '/', { scroll: false });
+  };
 
   useEffect(() => {
     const handleOffline = () => setIsOffline(true);
@@ -254,22 +272,42 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
               placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                updateUrl(statusFilter, e.target.value);
+              }}
             />
           </div>
 
           <div className="inline-flex p-1 space-x-1 bg-slate-200/60 rounded-lg">
-            <button type="button" className={pillClasses(statusFilter, 'all')} onClick={() => setStatusFilter('all')}>
+            <button
+              type="button"
+              className={pillClasses(statusFilter, 'all')}
+              onClick={() => {
+                setStatusFilter('all');
+                updateUrl('all', searchQuery);
+              }}
+            >
               All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-xs">{total}</span>
             </button>
-            <button type="button" className={pillClasses(statusFilter, 'active')} onClick={() => setStatusFilter('active')}>
+            <button
+              type="button"
+              className={pillClasses(statusFilter, 'active')}
+              onClick={() => {
+                setStatusFilter('active');
+                updateUrl('active', searchQuery);
+              }}
+            >
               <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
               <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{active}</span>
             </button>
             <button
               type="button"
               className={pillClasses(statusFilter, 'scheduled')}
-              onClick={() => setStatusFilter('scheduled')}
+              onClick={() => {
+                setStatusFilter('scheduled');
+                updateUrl('scheduled', searchQuery);
+              }}
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
               <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{scheduled}</span>
@@ -286,6 +324,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             onClick={() => {
               setSearchQuery('');
               setStatusFilter('all');
+              updateUrl('all', '');
             }}
             className="mt-4 text-blue-600 font-medium hover:underline"
           >
