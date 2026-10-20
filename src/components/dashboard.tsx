@@ -203,79 +203,87 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         </div>
       )}
 
-      <header className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="relative h-14 w-auto flex-shrink-0 overflow-hidden">
-              <Image src="/logo.jpg" alt="TubigWatch" className="h-full w-full object-contain mix-blend-multiply" />
+      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col gap-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+          <div>
+            <div className="relative h-24 w-auto flex-shrink-0 overflow-hidden">
+              <Image
+                src="/logo.jpg"
+                alt="TubigWatch"
+                width={2752}
+                height={1536}
+                className="h-full w-auto object-contain mix-blend-multiply"
+              />
             </div>
-          <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-zinc-500 font-medium hidden md:block">
-            {sourceLabel ?? (
-              <>
-                Source: Maynilad · Last updated:{' '}
-                {now.toLocaleTimeString('en-PH', {
-                  timeZone: 'Asia/Manila',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true,
-                })}
-              </>
-            )}
-          </span>
-          <Link
-            href="/map"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
-          >
-            <MapIcon className="w-4 h-4" /> View Map
-          </Link>
-        </div>
-      </header>
-
-      {mayniladError && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md my-4">
-          <p className="font-bold">Data currently unavailable</p>
-          <ul className="list-disc pl-5 mt-1 text-sm">
-            <li>{mayniladError}</li>
-          </ul>
-        </div>
-      )}
-
-      {statusUnknown && (
-        <p className="mb-6 text-sm font-medium text-zinc-600">Some outages have an unknown status.</p>
-      )}
-
-      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-4 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-zinc-400" />
+            <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
           </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
-            placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-zinc-500 font-medium hidden md:block">
+              {sourceLabel ?? (
+                <>
+                  Source: Maynilad · Last updated:{' '}
+                  {now.toLocaleTimeString('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </>
+              )}
+            </span>
+            <Link
+              href="/map"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+            >
+              <MapIcon className="w-4 h-4" /> View Map
+            </Link>
+          </div>
+        </header>
 
-        <div className="inline-flex p-1 space-x-1 bg-slate-200/60 rounded-lg">
-          <button type="button" className={pillClasses(statusFilter, 'all')} onClick={() => setStatusFilter('all')}>
-            All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-xs">{total}</span>
-          </button>
-          <button type="button" className={pillClasses(statusFilter, 'active')} onClick={() => setStatusFilter('active')}>
-            <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
-            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{active}</span>
-          </button>
-          <button
-            type="button"
-            className={pillClasses(statusFilter, 'scheduled')}
-            onClick={() => setStatusFilter('scheduled')}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
-            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{scheduled}</span>
-          </button>
+        {mayniladError && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
+            <p className="font-bold">Data currently unavailable</p>
+            <ul className="list-disc pl-5 mt-1 text-sm">
+              <li>{mayniladError}</li>
+            </ul>
+          </div>
+        )}
+
+        {statusUnknown && (
+          <p className="text-sm font-medium text-zinc-600">Some outages have an unknown status.</p>
+        )}
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-zinc-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-lg leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all"
+              placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="inline-flex p-1 space-x-1 bg-slate-200/60 rounded-lg">
+            <button type="button" className={pillClasses(statusFilter, 'all')} onClick={() => setStatusFilter('all')}>
+              All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-xs">{total}</span>
+            </button>
+            <button type="button" className={pillClasses(statusFilter, 'active')} onClick={() => setStatusFilter('active')}>
+              <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
+              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{active}</span>
+            </button>
+            <button
+              type="button"
+              className={pillClasses(statusFilter, 'scheduled')}
+              onClick={() => setStatusFilter('scheduled')}
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
+              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{scheduled}</span>
+            </button>
+          </div>
         </div>
       </div>
 

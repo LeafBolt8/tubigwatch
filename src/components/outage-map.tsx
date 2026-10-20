@@ -4,8 +4,6 @@ import 'leaflet/dist/leaflet.css';
 import type { Outage } from '@/lib/schemas/outage';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
-import Link from 'next/link';
-import { Map as MapIcon } from 'lucide-react';
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: () => string })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -60,20 +58,6 @@ export default function OutageMap({ outages }: OutageMapProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
-          <p className="mt-1 text-lg text-zinc-600">Metro Manila water outages by city</p>
-        </div>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
-        >
-          <MapIcon className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-      </div>
-
       <MapContainer
         center={[14.5995, 120.9842]}
         zoom={11}

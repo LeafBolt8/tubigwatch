@@ -3,6 +3,7 @@ import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import Link from 'next/link';
+import { Map as MapIcon } from 'lucide-react';
 import MapClient from '@/components/map-client';
 
 const DEV = process.env.NODE_ENV !== 'production';
@@ -98,30 +99,32 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
       : `Source: Maynilad · AI Extraction · Last updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-5xl bg-white/80 rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
-      <header className="mb-8 border-b border-slate-200 pb-6">
-        <div className="flex items-center justify-between gap-4">
+    <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 font-[ui-sans-serif-system]-shrink-0 text-[16px] leading-[1.6]">
+      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
             <p className="mt-1 text-lg text-zinc-600">Metro Manila water outages by city</p>
           </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
-          >
-            Back to Dashboard
-          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-zinc-500 font-medium hidden md:block">{sourceLine}</span>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+            >
+              <MapIcon className="w-4 h-4" /> Back to Dashboard
+            </Link>
+          </div>
         </div>
-        <p className="mt-4 text-sm text-zinc-400 font-medium">{sourceLine}</p>
-      </header>
 
-      <p className="mb-6 text-sm font-medium text-zinc-600">
-        {active} active · {scheduled} scheduled · {outages.length} total
-        {statusUnknown ? ' · some status unknown' : ''}
-      </p>
+        <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-medium text-zinc-600">
+          {active} active · {scheduled} scheduled · {outages.length} total
+          {statusUnknown ? ' · some status unknown' : ''}
+        </p>
+      </div>
 
       {freshness !== 'fresh' && (
-        <p className="mb-6 rounded border border-slate-300 bg-white px-4 py-3 text-zinc-900">
+        <p className="mb-6 rounded-xl border border-slate-300 bg-white/95 px-4 py-3 text-zinc-900">
           Source unavailable: {freshness === 'stale' ? 'stale' : freshness === 'unavailable' ? 'unavailable' : sourceErrors.join('; ')}
         </p>
       )}
