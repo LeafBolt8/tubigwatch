@@ -7,6 +7,16 @@ import type { Outage } from '@/lib/schemas/outage';
 import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 
 
+function unifyCityName(city: string | undefined): string {
+  if (!city) return 'Unknown';
+  const c = city.trim();
+  if (c === 'Navotas City' || c === 'Navotas') return 'Navotas';
+  if (c === 'Muntinlupa City' || c === 'Muntinlupa') return 'Muntinlupa';
+  if (c === 'Las Pinas City' || c === 'Las Piñas City' || c === 'Las Piñas') return 'Las Piñas';
+  if (c === 'Paranaque City' || c === 'Parañaque City' || c === 'Parañaque') return 'Parañaque';
+  return c;
+}
+
 export function normalizeOutages(outages: Outage[]): Outage[] {
   const result: Outage[] = [];
 
@@ -16,16 +26,22 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
 
     for (const area of outage.affectedAreas) {
       for (const b of area.barangays) {
-        const cleanName = b.name.replace(/^Brgys?\.\s*/i, '').trim().toLowerCase();
-        const correctCity = BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown';
+        const rawNames = b.name.replace(/^Brgys?\.\s*/i, '').split(/ and |, /i);
 
-        if (!barangaysByCity[correctCity]) {
-          barangaysByCity[correctCity] = [];
-        }
+        for (const rawName of rawNames) {
+          const cleanName = rawName.trim().toLowerCase();
+          if (!cleanName) continue;
 
-        // Avoid duplicate barangays in the same city.
-        if (!barangaysByCity[correctCity].some((existing) => existing.name === b.name)) {
-          barangaysByCity[correctCity].push({ ...b, city: correctCity });
+          const correctCity = unifyCityName(BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown');
+
+          if (!barangaysByCity[correctCity]) {
+            barangaysByCity[correctCity] = [];
+          }
+
+          // Avoid duplicate barangays in the same city.
+          if (!barangaysByCity[correctCity].some((existing) => existing.name === rawName.trim())) {
+            barangaysByCity[correctCity].push({ name: rawName.trim(), city: correctCity, province: b.province, psgcCode: b.psgcCode });
+          }
         }
       }
     }
@@ -154,6 +170,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages'],
-  { revalidate: 86400, tags: ['gemini-outages'] },
+  ['gemini-outages-v2'],
+  { revalidate: 86400, tags: ['gemini-outages-v2'] },
 );
