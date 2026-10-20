@@ -7,7 +7,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 
 
-function normalizeOutages(outages: Outage[]): Outage[] {
+export function normalizeOutages(outages: Outage[]): Outage[] {
   return outages.map((outage) => {
     const newAreas = outage.affectedAreas.map((area) => {
       const newBarangays = area.barangays.map((b) => {
