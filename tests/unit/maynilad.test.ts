@@ -241,11 +241,9 @@ describe('rowToPartialOutage', () => {
 
     const result = await fetchMayniladOutages({ maxPages: 1 });
 
-    expect(result.outages).toHaveLength(1);
-    expect(result.outages[0]!.affectedAreas).toHaveLength(2);
-    expect(
-      result.outages[0]!.affectedAreas.map((a) => a.barangays[0]?.city),
-    ).toEqual(expect.arrayContaining(['Pasay City', 'Quezon City']));
+    expect(result.outages).toHaveLength(2);
+    expect(result.outages[0]!.affectedAreas[0]!.barangays[0]?.city).toBe('Pasay City');
+    expect(result.outages[1]!.affectedAreas[0]!.barangays[0]?.city).toBe('Quezon City');
   });
 
 });

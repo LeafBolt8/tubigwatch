@@ -378,12 +378,13 @@ function findHtmlFragmentValue(obj: Record<string, unknown>): string | null {
 
 // ---------- grouping ----------
 
-/** Grouping key: rows that share these three are the same interruption. */
+/** Grouping key: rows that share these four are the same interruption. */
 function groupKey(row: PartialOutageRow): string {
   const sa = row.startsAt?.toISOString() ?? '___null___';
   const ea = row.endsAt?.toISOString() ?? '___null___';
   const r = row.reason.trim().toLowerCase();
-  return `${sa}||${ea}||${r}`;
+  const c = row.city ? row.city.trim().toLowerCase() : '___unknown___';
+  return `${c}||${sa}||${ea}||${r}`;
 }
 
 // ---------- build Outage ----------
