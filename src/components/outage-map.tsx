@@ -36,7 +36,7 @@ export default function OutageMap({ outages }: OutageMapProps) {
       <MapContainer
         center={[14.5995, 120.9842]}
         zoom={11}
-        className="h-[600px] w-full rounded-xl border border-zinc-200 shadow-sm z-0"
+        className="h-[70vh] min-h-[600px] w-full rounded-xl border border-zinc-200 shadow-sm z-0"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

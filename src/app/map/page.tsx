@@ -108,20 +108,20 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
       : `Source: Maynilad · AI Extraction · Updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
+    <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
       <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
-            <p className="mt-1 text-lg text-zinc-600">Metro Manila water outages by city</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
+            <p className="mt-1 text-xl text-zinc-600">Metro Manila water outages by city</p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-zinc-500 font-medium hidden md:block">{sourceLine}</span>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium hover:bg-zinc-800 transition-colors"
             >
-              <MapIcon className="w-4 h-4" /> Back to Dashboard
+              <MapIcon className="w-5 h-5" /> Back to Dashboard
             </Link>
           </div>
         </div>
