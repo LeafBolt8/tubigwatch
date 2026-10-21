@@ -4,7 +4,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Map as MapIcon, MapPin, Search, Share2 } from 'lucide-react';
+import { Copy, Map as MapIcon, MapPin, Search, Share2, X } from 'lucide-react';
 
 import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
@@ -127,6 +127,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
   const [userCity, setUserCity] = useState<string | null>(null);
+  const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const cityParam = searchParams.get('city');
 
   useEffect(() => {
@@ -134,7 +135,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
+  const requestLocation = () => {
+    setNearMeEnabled(true);
+    localStorage.setItem('tubigwatch_near_me', 'true');
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -142,7 +145,34 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           if (closest) setUserCity(closest);
         },
         (error) => {
-          console.warn('Location permission denied or unavailable', error);
+          console.warn('Location permission denied', error);
+          setNearMeEnabled(false);
+          localStorage.removeItem('tubigwatch_near_me');
+        },
+      );
+    }
+  };
+
+  const toggleNearMe = () => {
+    if (nearMeEnabled) {
+      setNearMeEnabled(false);
+      setUserCity(null);
+      localStorage.removeItem('tubigwatch_near_me');
+    } else {
+      requestLocation();
+    }
+  };
+
+  useEffect(() => {
+    const savedPref = localStorage.getItem('tubigwatch_near_me');
+    if (savedPref === 'true' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const closest = getClosestCity(position.coords.latitude, position.coords.longitude);
+          if (closest) setUserCity(closest);
+        },
+        (error) => {
+          console.warn('Location permission denied', error);
         },
       );
     }
@@ -270,12 +300,33 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            {userCity && (
+            {nearMeEnabled && userCity && (
               <div className="flex items-center gap-1.5 text-base text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
-                <MapPin className="w-5 h-5" />
+                <MapPin className="w-4 h-4" />
                 Prioritizing {userCity}
               </div>
             )}
+            <button
+              type="button"
+              title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
+              onClick={toggleNearMe}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border $ {
+                nearMeEnabled
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+              }`}
+            >
+              {nearMeEnabled ? (
+                <>
+                  <MapPin className="w-4 h-4" />
+                  Near Me: On
+                  <X className="ml-1.5 w-3.5 h-3.5" />
+                </>
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              {nearMeEnabled ? 'Near Me: On' : 'Near Me'}
+            </button>
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
