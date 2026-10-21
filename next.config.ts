@@ -2,9 +2,14 @@ import type { NextConfig } from 'next';
 
 // Next.js needs 'unsafe-inline' for its dev bootstrap scripts; this tightens to
 // nonces in Phase 4 (ARCHITECTURE.md §6).
+const isDev = process.env.NODE_ENV === 'development';
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
