@@ -4,7 +4,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Map as MapIcon, MapPin, Search } from 'lucide-react';
+import { Copy, Map as MapIcon, MapPin, Search, Share2 } from 'lucide-react';
 
 import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
@@ -428,6 +428,27 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                     .filter((t) => t !== 'unknown time')
                     .join(' – ');
 
+                  const handleShare = async () => {
+                    const text = `⚠️ WATER ADVISORY: ${outage.reason}\n\n📍 ${citiesLine}\n🗓️ From: ${localTime(outage.startsAt ?? null, now)}\n🗓️ To: ${localTime(outage.endsAt ?? null, now)}\n\nAffected Areas:\n${allBarangays.map((b) => `- Brgy. ${b}`).join('\n')}\n\nCheck details at TubigWatch:`;
+
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: 'TubigWatch Water Advisory',
+                          text,
+                          url: window.location.origin,
+                        });
+                      } catch (err) {
+                        // A cancelled share sheet rejects too, so this is expected noise, not a failure.
+                        console.warn('Share canceled or failed', err);
+                      }
+                    } else {
+                      // Desktop browsers without the Web Share API fall back to the copy behaviour.
+                      navigator.clipboard.writeText(`${text}\n${window.location.origin}`);
+                      alert('Sharing is not supported on this browser. Copied to clipboard instead!');
+                    }
+                  };
+
                   return (
                     <li key={outage.id} className="flex flex-col">
                       <article
@@ -491,18 +512,28 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               new Date(outage.endsAt).getTime() > now.getTime() && (
                                 <LiveCountdown targetDate={outage.endsAt} prefix="Restores in" />
                               )}
-                            <button
-                              type="button"
-                              aria-label="Copy outage details"
-                              onClick={() => {
-                                const text = `${outage.reason} - ${citiesLine}\nFrom: ${localTime(outage.startsAt ?? null, now)}\nTo: ${localTime(outage.endsAt ?? null, now)}\nAffected: ${allBarangays.join(', ')}`;
-                                navigator.clipboard.writeText(text);
-                                alert('Copied to clipboard!');
-                              }}
-                              className="ml-auto text-zinc-500 hover:text-zinc-900 transition-colors"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
+                            <div className="ml-auto flex items-center gap-3">
+                              <button
+                                type="button"
+                                aria-label="Copy outage details"
+                                onClick={() => {
+                                  const text = `${outage.reason} - ${citiesLine}\nFrom: ${localTime(outage.startsAt ?? null, now)}\nTo: ${localTime(outage.endsAt ?? null, now)}\nAffected: ${allBarangays.join(', ')}`;
+                                  navigator.clipboard.writeText(text);
+                                  alert('Copied to clipboard!');
+                                }}
+                                className="text-zinc-500 hover:text-zinc-900 transition-colors"
+                              >
+                                <Copy className="w-5 h-5" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="Share outage details"
+                                onClick={handleShare}
+                                className="text-zinc-500 hover:text-blue-600 transition-colors"
+                              >
+                                <Share2 className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </article>
