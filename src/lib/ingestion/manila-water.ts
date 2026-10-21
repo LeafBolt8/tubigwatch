@@ -24,6 +24,8 @@
 //   - `city_municipality` can be compound ("Pasig & Taguig City") or outside Metro Manila
 //     ("Rodriguez, Rizal", "Antipolo, Rizal", "Taytay, Rizal"). Compound strings are passed
 //     through untouched so normalizeOutages() can explode them per barangay via the dictionary.
+//     The province is derived from that same string (utils/province.ts) so Rizal rows are not
+//     labelled Metro Manila.
 //
 // Pagination: walk ?page=1..last_page, capped at MAX_PAGES. Reaching the cap with pages still
 // unread is reported as a sourceError — a truncated read must never look like a short list of
@@ -35,6 +37,7 @@
 import { OutageSchema } from '@/lib/schemas/outage';
 import type { Outage } from '@/lib/schemas/outage';
 import type { Barangay } from '@/lib/schemas/barangay';
+import { deriveProvince } from '@/lib/utils/province';
 
 const MW_API =
   'https://rcoi17pzkj.execute-api.ap-southeast-1.amazonaws.com/api/get-service-advisories';
@@ -43,9 +46,6 @@ const FETCH_TIMEOUT_MS = 30_000;
 
 /** Hard cap on pages walked (page 1 included). */
 const MAX_PAGES = 5;
-
-/** `city_municipality` is the only city signal in the payload, so it is reused verbatim. */
-const MW_PROVINCE = 'Metro Manila' as const;
 
 type MwApiRow = {
   _id: string;
@@ -88,7 +88,7 @@ export function placesToBarangays(places: string[], city: string): Barangay[] {
       .filter(Boolean);
 
     for (const piece of pieces) {
-      barangays.push({ name: piece, city, province: MW_PROVINCE });
+      barangays.push({ name: piece, city, province: deriveProvince(city) });
     }
   }
 

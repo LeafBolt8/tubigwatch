@@ -78,6 +78,9 @@ describe('fetchManilaWaterOutages', () => {
       'Sta Cruz',
       'Mambugan',
     ]);
+    // Antipolo is in Rizal, not Metro Manila.
+    expect(result.outages[0]?.affectedAreas[0]?.barangays[0]?.province).toBe('Rizal');
+    expect(result.outages[1]?.affectedAreas[0]?.barangays[0]?.province).toBe('Rizal');
   });
 
   test('reports a failing page instead of returning a silent empty list', async () => {

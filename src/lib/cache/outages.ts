@@ -182,7 +182,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). The Maynilad Gemini pass is slow (~45-80s), consumes API quota,
  *   and neither source streams live data, so 1 hour balances cost/speed against freshness. This is
  *   the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v8'] so a revalidateTag('gemini-outages-v8') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v9'] so a revalidateTag('gemini-outages-v9') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -244,6 +244,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v8'],
-  { revalidate: 86400, tags: ['gemini-outages-v8'] },
+  ['gemini-outages-v9'],
+  { revalidate: 86400, tags: ['gemini-outages-v9'] },
 );

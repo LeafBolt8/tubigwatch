@@ -59,6 +59,7 @@ import {
   ParseError,
 } from './parse-html-table';
 import { rowToPartialOutage, type PartialOutageRow } from './row-to-partial-outage';
+import { deriveProvince } from '@/lib/utils/province';
 
 const MAYNI_BASE = 'https://www.mayniladwater.com.ph/wp-json/interruptions';
 const ENDPOINTS = ['emergency', 'scheduled', 'rotational'] as const;
@@ -419,7 +420,7 @@ function buildOutage(
 
   // Affected areas: one entry per distinct barangay, with city.
   const affectedAreas = [...barangaySet.entries()].map(([name, city]) => ({
-    barangays: [{ name, city, province: 'Metro Manila' as const, psgcCode: undefined }],
+    barangays: [{ name, city, province: deriveProvince(city), psgcCode: undefined }],
     streets: [] as string[],
     notes: '',
   }));

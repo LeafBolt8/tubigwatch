@@ -37,6 +37,8 @@ export const CITY_COORDS: Record<string, [number, number]> = {
   'Cainta': [14.5778, 121.1142],
   'Taytay': [14.5688, 121.1318],
   'Taytay, Rizal': [14.5688, 121.1318],
+  'Bacoor, Cavite': [14.4624, 120.9645],
+  'Imus, Cavite': [14.4297, 120.9367],
 };
 
 // Metro Manila covers a small enough area that squared-degree distance ranks the
