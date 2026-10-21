@@ -9,11 +9,21 @@ import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 
 function unifyCityName(city: string | undefined): string {
   if (!city) return 'Unknown';
-  const c = city.trim();
+
+  // Split on semicolons in case the AI returned multiple cities
+  const parts = city.split(';').map(c => c.trim());
+
+  // If there's more than one city, we can't map it to a single unified city easily.
+  // But in our logic, `b.city` is only used as a fallback if the barangay name isn't in the dictionary.
+  // So we'll just take the first valid city from the split, or return the raw string if it's still a mess.
+  const firstPart = parts[0] || city;
+
+  const c = firstPart.trim();
   if (c === 'Navotas City' || c === 'Navotas') return 'Navotas';
   if (c === 'Muntinlupa City' || c === 'Muntinlupa') return 'Muntinlupa';
-  if (c === 'Las Pinas City' || c === 'Las Piñas City' || c === 'Las Piñas') return 'Las Piñas';
-  if (c === 'Paranaque City' || c === 'Parañaque City' || c === 'Parañaque') return 'Parañaque';
+  if (c === 'Las Pinas City' || c === 'Las Piñas City' || c === 'Las Piñas' || c === 'Las Pinas') return 'Las Piñas';
+  if (c === 'Paranaque City' || c === 'Parañaque City' || c === 'Parañaque' || c === 'Paranaque') return 'Parañaque';
+
   return c;
 }
 
@@ -111,7 +121,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
  *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
  *   freshness. This is the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v4'] so a revalidateTag('gemini-outages-v4') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v5'] so a revalidateTag('gemini-outages-v5') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -170,6 +180,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v4'],
-  { revalidate: 86400, tags: ['gemini-outages-v4'] },
+  ['gemini-outages-v5'],
+  { revalidate: 86400, tags: ['gemini-outages-v5'] },
 );

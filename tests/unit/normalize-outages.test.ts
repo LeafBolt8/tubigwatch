@@ -135,4 +135,64 @@ describe('normalizeOutages', () => {
     expect(cityByName.get('Brgy. Sucat')).toBe('Muntinlupa');
     expect(cityByName.get('Brgys. BF Homes')).toBe('Parañaque');
   });
+
+  it('unifies an unaccented "Las Pinas" fallback city', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-5',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [{ name: 'Barangay Not In Map', city: 'Las Pinas', province: 'Metro Manila' }],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
+  });
+
+  it('unifies a semicolon-separated city fallback to its first city', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-6',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              {
+                name: 'Barangay Not In Map',
+                city: 'Las Pinas City; Muntinlupa City; Paranaque City',
+                province: 'Metro Manila',
+              },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
+  });
 });
