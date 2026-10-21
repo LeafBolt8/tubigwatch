@@ -325,20 +325,6 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
               {nearMeEnabled && !isLocating && <X className="ml-1 w-3.5 h-3.5" />}
             </button>
-            <button
-              type="button"
-              title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
-              onClick={toggleNearMe}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border $ {
-                nearMeEnabled
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
-              {nearMeEnabled && !isLocating && <X className="ml-1 w-3.5 h-3.5" />}
-            </button>
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
