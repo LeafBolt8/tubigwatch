@@ -128,6 +128,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [isOffline, setIsOffline] = useState(false);
   const [userCity, setUserCity] = useState<string | null>(null);
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const cityParam = searchParams.get('city');
 
   useEffect(() => {
@@ -136,24 +137,27 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   }, []);
 
   const requestLocation = () => {
-    setNearMeEnabled(true);
-    localStorage.setItem('tubigwatch_near_me', 'true');
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const closest = getClosestCity(position.coords.latitude, position.coords.longitude);
-          if (closest) setUserCity(closest);
-        },
-        (error) => {
-          console.warn('Location permission denied', error);
-          setNearMeEnabled(false);
-          localStorage.removeItem('tubigwatch_near_me');
-        },
-      );
-    }
+    if (!('geolocation' in navigator)) return;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const closest = getClosestCity(position.coords.latitude, position.coords.longitude);
+        if (closest) setUserCity(closest);
+        setNearMeEnabled(true);
+        localStorage.setItem('tubigwatch_near_me', 'true');
+        setIsLocating(false);
+      },
+      (error) => {
+        console.warn('Location permission denied', error);
+        setNearMeEnabled(false);
+        localStorage.removeItem('tubigwatch_near_me');
+        setIsLocating(false);
+      },
+    );
   };
 
   const toggleNearMe = () => {
+    if (isLocating) return;
     if (nearMeEnabled) {
       setNearMeEnabled(false);
       setUserCity(null);
@@ -169,10 +173,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const closest = getClosestCity(position.coords.latitude, position.coords.longitude);
-          if (closest) setUserCity(closest);
+          if (closest) {
+            setUserCity(closest);
+            setNearMeEnabled(true);
+          }
         },
         (error) => {
           console.warn('Location permission denied', error);
+          localStorage.removeItem('tubigwatch_near_me');
         },
       );
     }
@@ -300,12 +308,23 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            {nearMeEnabled && userCity && (
-              <div className="flex items-center gap-1.5 text-base text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
-                <MapPin className="w-4 h-4" />
-                Prioritizing {userCity}
-              </div>
-            )}
+            <button
+              type="button"
+              disabled={isLocating}
+              title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
+              onClick={toggleNearMe}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                isLocating
+                  ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed'
+                  : nearMeEnabled
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+              }`}
+            >
+              <MapPin className="w-4 h-4" />
+              {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
+              {nearMeEnabled && !isLocating && <X className="ml-1 w-3.5 h-3.5" />}
+            </button>
             <button
               type="button"
               title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
@@ -317,8 +336,8 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               }`}
             >
               <MapPin className="w-4 h-4" />
-              {nearMeEnabled ? 'Near Me: On' : 'Near Me'}
-              {nearMeEnabled && <X className="ml-1 w-3.5 h-3.5" />}
+              {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
+              {nearMeEnabled && !isLocating && <X className="ml-1 w-3.5 h-3.5" />}
             </button>
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
