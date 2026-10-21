@@ -22,6 +22,7 @@ export const BARANGAY_TO_CITY: Readonly<Record<string, string>> = {
 
   // Parañaque
   'baclaran': 'Parañaque', 'don galo': 'Parañaque', 'la huerta': 'Parañaque', 'san dionisio': 'Parañaque', 'tambo': 'Parañaque', 'vitalez': 'Parañaque', 'bf homes': 'Parañaque', 'don bosco': 'Parañaque', 'marcelo green': 'Parañaque', 'merville': 'Parañaque', 'moonwalk': 'Parañaque', 'sun valley': 'Parañaque',
+  'sto. nino': 'Parañaque', 'sto. niño': 'Parañaque', 'santo nino': 'Parañaque', 'santo niño': 'Parañaque',
 
   // Pasig
   'bagong ilog': 'Pasig', 'bagong katipunan': 'Pasig', 'bambang': 'Pasig', 'buting': 'Pasig', 'caniogan': 'Pasig', 'kalawaan': 'Pasig', 'kapasigan': 'Pasig', 'kapitolyo': 'Pasig', 'malinao': 'Pasig', 'oranbo': 'Pasig', 'palatiw': 'Pasig', 'pineda': 'Pasig', 'sagad': 'Pasig', 'san joaquin': 'Pasig', 'san nicolas (poblacion)': 'Pasig', 'santa rosa': 'Pasig', 'santo tomas': 'Pasig', 'sumilang': 'Pasig', 'dela paz': 'Pasig', 'manggahan': 'Pasig', 'maybunga': 'Pasig', 'pinagbuhatan': 'Pasig', 'rosario': 'Pasig', 'san miguel': 'Pasig',

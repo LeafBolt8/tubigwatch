@@ -26,7 +26,7 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
 
     for (const area of outage.affectedAreas) {
       for (const b of area.barangays) {
-        const rawNames = b.name.replace(/^Brgys?\.\s*/i, '').split(/ and |, /i);
+        const rawNames = b.name.replace(/^Brgys?\.\s*/i, '').split(/[,;]|\band\b/i);
 
         for (const rawName of rawNames) {
           const cleanName = rawName.trim().toLowerCase();
@@ -111,7 +111,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
  *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
  *   freshness. This is the §4 default and is appropriate here.
- * - Tags: ['gemini-outages'] so a revalidateTag('gemini-outages') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v3'] so a revalidateTag('gemini-outages-v3') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -170,6 +170,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v2'],
-  { revalidate: 86400, tags: ['gemini-outages-v2'] },
+  ['gemini-outages-v3'],
+  { revalidate: 86400, tags: ['gemini-outages-v3'] },
 );
