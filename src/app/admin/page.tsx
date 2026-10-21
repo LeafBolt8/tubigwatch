@@ -94,14 +94,14 @@ export default function AdminPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-zinc-700">
-              API key (GEMINI_API_KEY)
+              Admin Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="block w-full rounded-lg border-zinc-300 bg-white px-3 py-2 text-zinc-900 leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="GEMINI_API_KEY"
+              placeholder="Admin Password"
             />
           </div>
 

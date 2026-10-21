@@ -26,6 +26,40 @@ function unauthorized(body: { error: string }) {
   return NextResponse.json(body, { status: 401 });
 }
 
+/**
+ * The panel sends its password URI-encoded, so decode before comparing; a password containing
+ * a space, "+" or "%" would otherwise never match. A malformed escape falls back to the raw
+ * value rather than throwing.
+ */
+function decodeToken(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Gates the admin routes on ADMIN_PASSWORD. Kept separate from GEMINI_API_KEY on purpose: the
+ * admin password grants write access to manual overrides, and reusing the provider key for that
+ * forced one credential to serve two very different trust boundaries.
+ */
+function adminAuthError(request: NextRequest): NextResponse | null {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    return serverError('ADMIN_PASSWORD is not configured');
+  }
+
+  const header = request.headers.get('authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? decodeToken(header.slice(7)) : null;
+
+  if (token !== adminPassword) {
+    return unauthorized({ error: 'Unauthorized. Check the admin password.' });
+  }
+
+  return null;
+}
+
 function serverError(message: string) {
   return NextResponse.json({ error: message }, { status: 500 });
 }
@@ -42,14 +76,8 @@ function ok(body: { ok: true; servedAt: string }) {
 }
 
 export async function POST(request: NextRequest) {
-  const bearer = request.headers.get('authorization');
-  if (process.env.GEMINI_API_KEY) {
-    if (bearer !== `Bearer ${process.env.GEMINI_API_KEY}`) {
-      return unauthorized({ error: 'Unauthorized. Please check your GEMINI_API_KEY.' });
-    }
-  } else {
-    return serverError('GEMINI_API_KEY is not configured on this project.');
-  }
+  const authError = adminAuthError(request);
+  if (authError) return authError;
 
   let body: unknown;
   try {
@@ -95,14 +123,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const bearer = request.headers.get('authorization');
-  if (process.env.GEMINI_API_KEY) {
-    if (bearer !== `Bearer ${process.env.GEMINI_API_KEY}`) {
-      return unauthorized({ error: 'Unauthorized. Please check your GEMINI_API_KEY.' });
-    }
-  } else {
-    return serverError('GEMINI_API_KEY is not configured on this project.');
-  }
+  const authError = adminAuthError(request);
+  if (authError) return authError;
 
   try {
     const data = await redis.get<{ servedAt: string; rows: unknown[] }>('manual-outages');
