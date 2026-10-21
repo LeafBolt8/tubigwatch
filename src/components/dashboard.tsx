@@ -109,8 +109,8 @@ function parseStatusFilter(raw: string | null): StatusFilter {
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
-    ? 'inline-flex items-center bg-white text-zinc-900 shadow-sm rounded-lg px-6 py-2.5 text-base font-medium'
-    : 'inline-flex items-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-6 py-2.5 text-base font-medium transition-all';
+    ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium'
+    : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all';
 }
 
 type DashboardProps = {
@@ -271,12 +271,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           </div>
           <div className="flex flex-wrap items-center gap-4">
             {userCity && (
-              <div className="flex items-center gap-1.5 text-sm text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center gap-1.5 text-base text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
+                <MapPin className="w-5 h-5" />
                 Prioritizing {userCity}
               </div>
             )}
-            <span className="text-sm text-zinc-500 font-medium hidden md:block">
+            <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
                   Source: Maynilad · Updated:{' '}
@@ -301,7 +301,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         {mayniladError && (
           <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
             <p className="font-bold">Data currently unavailable</p>
-            <ul className="list-disc pl-5 mt-1 text-sm">
+            <ul className="list-disc pl-5 mt-1 text-base">
               <li>{mayniladError}</li>
             </ul>
           </div>
@@ -312,7 +312,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         )}
 
         {sourceErrors.some((e) => e.startsWith('manila-water:')) && (
-          <p className="text-sm font-medium text-amber-800">
+          <p className="text-base font-medium text-amber-800">
             Manila Water advisories could not be fetched right now.
           </p>
         )}
@@ -324,7 +324,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             </div>
             <input
               type="text"
-              className="block w-full pl-12 pr-4 py-3 text-lg border border-zinc-300 rounded-xl leading-6 bg-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="block w-full pl-12 pr-4 py-3 text-xl border border-zinc-300 rounded-xl leading-6 bg-white placeholder-zinc-500 placeholder:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
               value={searchQuery}
               onChange={(e) => {
@@ -334,7 +334,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             />
           </div>
 
-          <div className="inline-flex p-1 space-x-1 bg-slate-200/60 rounded-lg">
+          <div className="flex w-full md:inline-flex md:w-auto flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg">
             <button
               type="button"
               className={pillClasses(statusFilter, 'all')}
@@ -343,7 +343,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                 updateUrl('all', searchQuery);
               }}
             >
-              All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-xs">{total}</span>
+              All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-base">{total}</span>
             </button>
             <button
               type="button"
@@ -354,7 +354,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               }}
             >
               <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
-              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{active}</span>
+              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-base">{active}</span>
             </button>
             <button
               type="button"
@@ -365,7 +365,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               }}
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
-              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{scheduled}</span>
+              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-base">{scheduled}</span>
             </button>
           </div>
         </div>
@@ -440,9 +440,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                         }`}
                       >
                         <div className="p-6 flex flex-col gap-3 h-full">
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold uppercase tracking-wider ${statusClass}`}>
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-base font-bold uppercase tracking-wider ${statusClass}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                                 {badge}
                               </span>
@@ -457,7 +457,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               </span>
                             </div>
                             {timeRange && (
-                              <span className="text-base text-zinc-500 font-medium text-right">{timeRange}</span>
+                              <span className="text-lg font-medium text-zinc-600 text-right">{timeRange}</span>
                             )}
                           </div>
 
@@ -470,7 +470,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               {allBarangays.map((b) => (
                                 <span
                                   key={b}
-                                  className="inline-block bg-zinc-100 text-zinc-700 text-base font-medium px-4 py-2 rounded-lg"
+                                  className="inline-block bg-zinc-100 text-zinc-700 text-lg font-medium px-4 py-2 rounded-lg"
                                 >
                                   Brgy. {b}
                                 </span>
@@ -482,7 +482,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                             <p className="text-sm text-zinc-500">Location details unavailable</p>
                           )}
 
-                          <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+                          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-1">
                             {status === 'scheduled' && new Date(outage.startsAt).getTime() > now.getTime() && (
                               <LiveCountdown targetDate={outage.startsAt} prefix="Starts in" />
                             )}

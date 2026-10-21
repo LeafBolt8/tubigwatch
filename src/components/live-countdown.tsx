@@ -32,7 +32,7 @@ export default function LiveCountdown({ targetDate, prefix }: LiveCountdownProps
   if (Number.isNaN(diff) || diff < 0) return null;
 
   return (
-    <p className="text-base font-semibold text-zinc-900">
+    <p className="text-lg font-bold text-zinc-900">
       {prefix} {formatDuration(diff)}
     </p>
   );
