@@ -227,14 +227,19 @@ export const getCachedGeminiOutages = unstable_cache(
     }
 
     try {
-      const stale = await redis.get<Outage[]>('last-known-good-outages');
-      if (stale && stale.length > 0) {
-        return {
-          outages: stale,
-          errors: [
-            'WARNING: Live fetch failed. Serving stale data from the last successful sync.',
-          ],
-        };
+      const staleData = await redis.get<{ outages: Outage[]; timestamp: number }>('last-known-good-outages');
+      if (staleData && staleData.outages && staleData.outages.length > 0) {
+        const ageHours = (Date.now() - staleData.timestamp) / (1000 * 60 * 60);
+        if (ageHours <= 36) {
+          return {
+            outages: staleData.outages,
+            errors: [
+              'WARNING: Live fetch failed. Serving stale data from the last successful sync.',
+            ],
+          };
+        } else {
+          console.warn(`Stale data is too old (${ageHours.toFixed(1)}h). Rejecting fallback.`);
+        }
       }
     } catch (staleReadErr) {
       console.warn('Failed to read stale outages fallback:', staleReadErr);
@@ -251,7 +256,7 @@ export const getCachedGeminiOutages = unstable_cache(
     const merged = dedupById<Outage>([...mayniladOutages, ...manilaWaterOutages]);
 
     try {
-      await redis.set('last-known-good-outages', normalizeOutages(merged));
+      await redis.set('last-known-good-outages', { outages: normalizeOutages(merged), timestamp: Date.now() });
     } catch (persistErr) {
       console.warn('Failed to persist last-known-good-outages:', persistErr);
     }
