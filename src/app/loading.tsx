@@ -3,8 +3,8 @@ export default function Loading() {
     <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
       <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
         <header className="mb-8 border-b border-slate-200 pb-6">
-          <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-          <p className="mt-1 text-lg text-zinc-600">Metro Manila water service advisories</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
+          <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
         </header>
 
         <p className="mb-6 text-zinc-700">
