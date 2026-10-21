@@ -96,4 +96,43 @@ describe('normalizeOutages', () => {
 
     expect(barangayCity).toBe('Parañaque');
   });
+
+  it('strips the Brgy. prefix per segment so inner names still hit the city map', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-4',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'Almanza Uno; Brgy. Sucat; Brgys. BF Homes', city: 'Las Piñas', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const cityByName = new Map<string, string>();
+    for (const outage of normalizeOutages(input)) {
+      for (const area of outage.affectedAreas) {
+        for (const b of area.barangays) {
+          cityByName.set(b.name, b.city);
+        }
+      }
+    }
+
+    expect(cityByName.get('Brgy. Sucat')).toBe('Muntinlupa');
+    expect(cityByName.get('Brgys. BF Homes')).toBe('Parañaque');
+  });
 });
