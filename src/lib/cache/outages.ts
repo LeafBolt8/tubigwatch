@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 
 import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
+import { fetchManilaWaterOutages } from '@/lib/ingestion/manila-water';
 import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
@@ -10,8 +11,9 @@ import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 function unifyCityName(city: string | undefined): string {
   if (!city) return 'Unknown';
 
-  // Split on semicolons in case the AI returned multiple cities
-  const parts = city.split(';').map(c => c.trim());
+  // Split on semicolons or ampersands in case the upstream returned multiple cities
+  // ("Las Pinas City; Paranaque City", "Pasig & Taguig City").
+  const parts = city.split(/[;&]/).map(c => c.trim());
 
   // If there's more than one city, we can't map it to a single unified city easily.
   // But in our logic, `b.city` is only used as a fallback if the barangay name isn't in the dictionary.
@@ -35,6 +37,7 @@ function unifyCityName(city: string | undefined): string {
  */
 function cleanBarangayName(name: string): string {
   return name
+    .replace(/^portions?\s+of\s+/i, '')
     .replace(/brgys?\.?/gi, '')
     .replace(/[^a-z0-9\s]/gi, '')
     .replace(/\s+/g, ' ')
@@ -127,7 +130,6 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
 }
 
 const MAYNI_URL = 'https://www.mayniladwater.com.ph/service-advisories-2/';
-const MW_URL = 'https://www.manilawater.com/customers/service-advisories';
 
 function dedupById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -169,15 +171,18 @@ export const getCachedMayniladOutages = unstable_cache(
 );
 
 /***
- * Cached surface for Gemini-extracted outages from the Cloudflare-protected advisory pages.
+ * Cached surface for both concessionaires' advisories.
+ *
+ * Manila Water is read natively from its public REST API (see lib/ingestion/manila-water.ts);
+ * only Maynilad still goes through Gemini, with the native scraper as fallback.
  *
  * Design notes:
  * - One cache entry per deploy, keyed with no args (both URLs are constant). If a future task ever
  *   needs per-page or per-key cache lifetimes, it must pass serializable args and adjust the key.
- * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
- *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
- *   freshness. This is the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v7'] so a revalidateTag('gemini-outages-v7') would refresh both sources at once.
+ * - Revalidate: 3600 s (1 hour). The Maynilad Gemini pass is slow (~45-80s), consumes API quota,
+ *   and neither source streams live data, so 1 hour balances cost/speed against freshness. This is
+ *   the §4 default and is appropriate here.
+ * - Tags: ['gemini-outages-v8'] so a revalidateTag('gemini-outages-v8') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -213,11 +218,14 @@ export const getCachedGeminiOutages = unstable_cache(
       }
     }
 
-    const manilaWater = await extractOutagesFromUrl(MW_URL);
-    if (manilaWater.error) {
-      manilaWaterError = manilaWater.error;
-    } else {
-      manilaWaterOutages = manilaWater.outages;
+    try {
+      const mwResult = await fetchManilaWaterOutages();
+      manilaWaterOutages = mwResult.outages;
+      if (mwResult.sourceErrors.length > 0) {
+        manilaWaterError = mwResult.sourceErrors.join(', ');
+      }
+    } catch (mwErr) {
+      manilaWaterError = mwErr instanceof Error ? mwErr.message : String(mwErr);
     }
 
     const manualOutages = await readManualOutages();
@@ -236,6 +244,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v7'],
-  { revalidate: 86400, tags: ['gemini-outages-v7'] },
+  ['gemini-outages-v8'],
+  { revalidate: 86400, tags: ['gemini-outages-v8'] },
 );

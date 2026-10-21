@@ -319,4 +319,71 @@ describe('normalizeOutages', () => {
     expect(cityByName.get('Sto. Niño')).toBe('Parañaque');
     expect(cityByName.get('U.P. Campus')).toBe('Quezon City');
   });
+
+  it('splits an ampersand-separated city string on the first city', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-9',
+        concessionaire: 'manila-water',
+        status: 'active',
+        reason: 'Supply Augmentation',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'Barangay Not In Map', city: 'Pasig & Taguig City', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    expect(normalizeOutages(input)[0]?.city).toBe('Pasig');
+  });
+
+  it('strips a "Portions of" prefix before looking the barangay up', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-10',
+        concessionaire: 'manila-water',
+        status: 'active',
+        reason: 'Leak Repair',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'Portions of Brgy. Bel-Air', city: 'Pasay City', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const cityByName = new Map<string, string>();
+    for (const outage of normalizeOutages(input)) {
+      for (const area of outage.affectedAreas) {
+        for (const b of area.barangays) {
+          cityByName.set(b.name, b.city);
+        }
+      }
+    }
+
+    expect(cityByName.get('Portions of Brgy. Bel-Air')).toBe('Makati');
+  });
 });

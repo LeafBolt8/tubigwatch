@@ -36,6 +36,7 @@ export const CITY_COORDS: Record<string, [number, number]> = {
   'Angono, Rizal': [14.5255, 121.1535],
   'Cainta': [14.5778, 121.1142],
   'Taytay': [14.5688, 121.1318],
+  'Taytay, Rizal': [14.5688, 121.1318],
 };
 
 // Metro Manila covers a small enough area that squared-degree distance ranks the
