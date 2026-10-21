@@ -4,10 +4,11 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Map as MapIcon, Search } from 'lucide-react';
+import { Copy, Map as MapIcon, MapPin, Search } from 'lucide-react';
 
 import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
+import { getClosestCity } from '@/lib/utils/geo';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 
@@ -125,11 +126,26 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [isOffline, setIsOffline] = useState(false);
+  const [userCity, setUserCity] = useState<string | null>(null);
   const cityParam = searchParams.get('city');
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const closest = getClosestCity(position.coords.latitude, position.coords.longitude);
+          if (closest) setUserCity(closest);
+        },
+        (error) => {
+          console.warn('Location permission denied or unavailable', error);
+        },
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -228,7 +244,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     }
   }
 
-  const sortedCities = Array.from(groupedByCity.keys()).sort((a, b) => a.localeCompare(b));
+  const sortedCities = Array.from(groupedByCity.keys()).sort((a, b) => {
+    // If one of them is the user's city, put it at the top
+    if (userCity && a === userCity) return -1;
+    if (userCity && b === userCity) return 1;
+    // Otherwise, alphabetical
+    return a.localeCompare(b);
+  });
 
   return (
     <>
@@ -247,7 +269,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
             <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {userCity && (
+              <div className="flex items-center gap-1.5 text-sm text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
+                <MapPin className="w-4 h-4" />
+                Prioritizing {userCity}
+              </div>
+            )}
             <span className="text-sm text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>

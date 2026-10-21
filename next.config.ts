@@ -24,7 +24,9 @@ const nextConfig: NextConfig = {
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // geolocation=(self) is required: the dashboard asks for the visitor's city to
+          // prioritize their outage cards, and an empty allowlist blocks the API outright.
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
         ],
       },
     ];
