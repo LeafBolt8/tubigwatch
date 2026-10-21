@@ -196,7 +196,7 @@ describe('normalizeOutages', () => {
     expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
   });
 
-  it('moves San Antonio and San Isidro out of a Las Piñas row to Parañaque', () => {
+  it('keeps an ambiguous barangay in the row city when the row names one city', () => {
     const input: Outage[] = [
       {
         id: 'test-7',
@@ -208,8 +208,48 @@ describe('normalizeOutages', () => {
         affectedAreas: [
           {
             barangays: [
-              { name: 'San Antonio', city: 'Las Piñas', province: 'Metro Manila' },
-              { name: 'San Isidro', city: 'Las Piñas', province: 'Metro Manila' },
+              { name: 'San Antonio', city: 'Makati', province: 'Metro Manila' },
+              { name: 'San Isidro', city: 'Pasig', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const cityByName = new Map<string, string>();
+    for (const outage of normalizeOutages(input)) {
+      for (const area of outage.affectedAreas) {
+        for (const b of area.barangays) {
+          cityByName.set(b.name, b.city);
+        }
+      }
+    }
+
+    expect(cityByName.get('San Antonio')).toBe('Makati');
+    expect(cityByName.get('San Isidro')).toBe('Pasig');
+  });
+
+  it('trusts the dictionary for an ambiguous barangay in a multi-city row', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-7b',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'San Antonio', city: 'Las Pinas City; Paranaque City', province: 'Metro Manila' },
+              { name: 'San Isidro', city: 'Las Pinas City; Paranaque City', province: 'Metro Manila' },
             ],
             streets: [],
             notes: '',

@@ -55,6 +55,34 @@ const NORMALIZED_BARANGAY_TO_CITY: Record<string, string> = (() => {
   return map;
 })();
 
+/**
+ * Barangay names that exist in several Metro Manila cities, so the dictionary alone cannot
+ * pick the right one. For these the row's own city wins whenever the row names a usable
+ * single city; the dictionary stays the fallback for missing or multi-city rows.
+ */
+const AMBIGUOUS_BARANGAYS: ReadonlySet<string> = new Set(['san antonio', 'san isidro']);
+
+/**
+ * Picks the city for one barangay. The dictionary is the authority for uniquely named
+ * barangays (it corrects AI mislabels), and only yields to the row's city for ambiguous
+ * names — and never for a multi-city row, where the dictionary resolves the ambiguity.
+ */
+function resolveBarangayCity(cleanName: string, rowCity: string | undefined): string {
+  const dictCity = NORMALIZED_BARANGAY_TO_CITY[cleanName];
+  const unifiedRowCity = unifyCityName(rowCity || 'Unknown');
+
+  if (!dictCity) return unifiedRowCity;
+
+  const isMultiCityRow = (rowCity || '').includes(';');
+  const isAmbiguous = AMBIGUOUS_BARANGAYS.has(cleanName);
+
+  if (isAmbiguous && !isMultiCityRow && unifiedRowCity !== 'Unknown') {
+    return unifiedRowCity;
+  }
+
+  return unifyCityName(dictCity);
+}
+
 export function normalizeOutages(outages: Outage[]): Outage[] {
   const result: Outage[] = [];
 
@@ -70,7 +98,7 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
           const cleanName = cleanBarangayName(rawName);
           if (!cleanName) continue;
 
-          const correctCity = unifyCityName(NORMALIZED_BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown');
+          const correctCity = resolveBarangayCity(cleanName, b.city);
 
           if (!barangaysByCity[correctCity]) {
             barangaysByCity[correctCity] = [];
@@ -149,7 +177,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
  *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
  *   freshness. This is the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v6'] so a revalidateTag('gemini-outages-v6') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v7'] so a revalidateTag('gemini-outages-v7') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -208,6 +236,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v6'],
-  { revalidate: 86400, tags: ['gemini-outages-v6'] },
+  ['gemini-outages-v7'],
+  { revalidate: 86400, tags: ['gemini-outages-v7'] },
 );
