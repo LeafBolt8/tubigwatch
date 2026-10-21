@@ -195,4 +195,88 @@ describe('normalizeOutages', () => {
 
     expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
   });
+
+  it('moves San Antonio and San Isidro out of a Las Piñas row to Parañaque', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-7',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'San Antonio', city: 'Las Piñas', province: 'Metro Manila' },
+              { name: 'San Isidro', city: 'Las Piñas', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const cityByName = new Map<string, string>();
+    for (const outage of normalizeOutages(input)) {
+      for (const area of outage.affectedAreas) {
+        for (const b of area.barangays) {
+          cityByName.set(b.name, b.city);
+        }
+      }
+    }
+
+    expect(cityByName.get('San Antonio')).toBe('Parañaque');
+    expect(cityByName.get('San Isidro')).toBe('Parañaque');
+  });
+
+  it('still resolves punctuated barangay names after aggressive cleaning', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-8',
+        concessionaire: 'maynilad',
+        status: 'active',
+        reason: 'Water Service Interruption',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'Bel-Air', city: 'Unknown', province: 'Metro Manila' },
+              { name: 'Doña Aurora', city: 'Unknown', province: 'Metro Manila' },
+              { name: 'Sto. Niño', city: 'Unknown', province: 'Metro Manila' },
+              { name: 'U.P. Campus', city: 'Unknown', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const cityByName = new Map<string, string>();
+    for (const outage of normalizeOutages(input)) {
+      for (const area of outage.affectedAreas) {
+        for (const b of area.barangays) {
+          cityByName.set(b.name, b.city);
+        }
+      }
+    }
+
+    expect(cityByName.get('Bel-Air')).toBe('Makati');
+    expect(cityByName.get('Doña Aurora')).toBe('Quezon City');
+    expect(cityByName.get('Sto. Niño')).toBe('Parañaque');
+    expect(cityByName.get('U.P. Campus')).toBe('Quezon City');
+  });
 });

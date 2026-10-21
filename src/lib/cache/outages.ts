@@ -27,6 +27,34 @@ function unifyCityName(city: string | undefined): string {
   return c;
 }
 
+/**
+ * Normalizes a barangay label into a lookup key: drops the "Brgy" marker, strips every
+ * punctuation mark, collapses whitespace and lowercases. Applied to both the incoming
+ * name and the dictionary keys so punctuated entries ("Bel-Air", "Sto. Niño", "Doña
+ * Aurora") stay reachable after punctuation is removed.
+ */
+function cleanBarangayName(name: string): string {
+  return name
+    .replace(/brgys?\.?/gi, '')
+    .replace(/[^a-z0-9\s]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// Dictionary keys normalized with the same function used on incoming names. First key wins
+// so a collision cannot silently overwrite an earlier (curated) mapping.
+const NORMALIZED_BARANGAY_TO_CITY: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const [key, city] of Object.entries(BARANGAY_TO_CITY)) {
+    const normalized = cleanBarangayName(key);
+    if (normalized && map[normalized] === undefined) {
+      map[normalized] = city;
+    }
+  }
+  return map;
+})();
+
 export function normalizeOutages(outages: Outage[]): Outage[] {
   const result: Outage[] = [];
 
@@ -39,10 +67,10 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
         const rawNames = b.name.split(/[,;]|\band\b/i);
 
         for (const rawName of rawNames) {
-          const cleanName = rawName.replace(/^\s*Brgys?\.\s*/i, '').trim().toLowerCase();
+          const cleanName = cleanBarangayName(rawName);
           if (!cleanName) continue;
 
-          const correctCity = unifyCityName(BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown');
+          const correctCity = unifyCityName(NORMALIZED_BARANGAY_TO_CITY[cleanName] || b.city || 'Unknown');
 
           if (!barangaysByCity[correctCity]) {
             barangaysByCity[correctCity] = [];
@@ -121,7 +149,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). Gemini extraction is slow (~45-80s per page), consumes API quota,
  *   and the two advisory pages are not streamed live data, so 1 hour balances cost/speed against
  *   freshness. This is the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v5'] so a revalidateTag('gemini-outages-v5') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v6'] so a revalidateTag('gemini-outages-v6') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -180,6 +208,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v5'],
-  { revalidate: 86400, tags: ['gemini-outages-v5'] },
+  ['gemini-outages-v6'],
+  { revalidate: 86400, tags: ['gemini-outages-v6'] },
 );
