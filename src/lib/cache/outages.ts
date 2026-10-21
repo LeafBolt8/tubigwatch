@@ -231,10 +231,9 @@ export const getCachedGeminiOutages = unstable_cache(
       if (staleData && staleData.outages && staleData.outages.length > 0) {
         const ageHours = (Date.now() - staleData.timestamp) / (1000 * 60 * 60);
         if (ageHours <= 36) {
-          const ageLabel = ageHours < 1 ? 'less than an hour' : `${Math.round(ageHours)} hours`;
           return {
             outages: staleData.outages,
-            errors: [`WARNING: Live fetch failed. Serving stale data from ${ageLabel} ago.`],
+            errors: ['WARNING: Serving stale data.'],
           };
         } else {
           console.warn(`Stale data is too old (${ageHours.toFixed(1)}h). Rejecting fallback.`);
