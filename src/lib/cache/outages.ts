@@ -6,6 +6,7 @@ import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
 import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
 import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
+import { cleanBarangayName } from '@/lib/utils/barangay-name';
 
 
 function unifyCityName(city: string | undefined): string {
@@ -27,22 +28,6 @@ function unifyCityName(city: string | undefined): string {
   if (c === 'Paranaque City' || c === 'Parañaque City' || c === 'Parañaque' || c === 'Paranaque') return 'Parañaque';
 
   return c;
-}
-
-/**
- * Normalizes a barangay label into a lookup key: drops the "Brgy" marker, strips every
- * punctuation mark, collapses whitespace and lowercases. Applied to both the incoming
- * name and the dictionary keys so punctuated entries ("Bel-Air", "Sto. Niño", "Doña
- * Aurora") stay reachable after punctuation is removed.
- */
-function cleanBarangayName(name: string): string {
-  return name
-    .replace(/^portions?\s+of\s+/i, '')
-    .replace(/brgys?\.?/gi, '')
-    .replace(/[^a-z0-9\s]/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
 }
 
 // Dictionary keys normalized with the same function used on incoming names. First key wins
@@ -107,8 +92,14 @@ export function normalizeOutages(outages: Outage[]): Outage[] {
             barangaysByCity[correctCity] = [];
           }
 
-          // Avoid duplicate barangays in the same city.
-          if (!barangaysByCity[correctCity].some((existing) => existing.name === rawName.trim())) {
+          // Dedupe on the cleaned key, not the raw spelling: "Sta. Ana" and "Sta Ana" (or
+          // "Pinagbuhatan" and "PInagbuhatan") are the same barangay, and the first spelling
+          // seen becomes the display name.
+          const alreadyHave = barangaysByCity[correctCity].some(
+            (existing) => cleanBarangayName(existing.name) === cleanName,
+          );
+
+          if (!alreadyHave) {
             barangaysByCity[correctCity].push({ name: rawName.trim(), city: correctCity, province: b.province, psgcCode: b.psgcCode });
           }
         }
@@ -182,7 +173,7 @@ export const getCachedMayniladOutages = unstable_cache(
  * - Revalidate: 3600 s (1 hour). The Maynilad Gemini pass is slow (~45-80s), consumes API quota,
  *   and neither source streams live data, so 1 hour balances cost/speed against freshness. This is
  *   the §4 default and is appropriate here.
- * - Tags: ['gemini-outages-v9'] so a revalidateTag('gemini-outages-v9') would refresh both sources at once.
+ * - Tags: ['gemini-outages-v10'] so a revalidateTag('gemini-outages-v10') would refresh both sources at once.
  * - Returns only the validated, hydrated Outage[] that the UI already consumes; errors do not become
  *   outage rows (they surface as sourceErrors in the route).
  */
@@ -244,6 +235,6 @@ export const getCachedGeminiOutages = unstable_cache(
 
     return { outages: normalizeOutages(merged), errors };
   },
-  ['gemini-outages-v9'],
-  { revalidate: 86400, tags: ['gemini-outages-v9'] },
+  ['gemini-outages-v10'],
+  { revalidate: 86400, tags: ['gemini-outages-v10'] },
 );

@@ -27,7 +27,7 @@ All schemas live in `src/lib/schemas/`. Each schema exports a matching `z.infer`
 
 - `ConcessionaireSchema` — enum: "maynilad" | "manila-water".
 - `OutageStatusSchema` — enum: "scheduled" | "active" | "restored" | "cancelled" | "unknown".
-- `BarangaySchema` — { name, city, province: "Metro Manila", psgcCode? }.
+- `BarangaySchema` — { name, city, province: z.enum(["Metro Manila", "Rizal", "Cavite", "Laguna", "Bulacan"]) — derived from city_municipality via deriveProvince(), psgcCode? }.
 - `AffectedAreaSchema` — { barangays: BarangaySchema[], streets?: string[], notes?: string }.
 - `OutageSchema` — canonical shape:
   - id (stable hash of concessionaire + startsAt + affected area)

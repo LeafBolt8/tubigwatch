@@ -38,6 +38,7 @@ import { OutageSchema } from '@/lib/schemas/outage';
 import type { Outage } from '@/lib/schemas/outage';
 import type { Barangay } from '@/lib/schemas/barangay';
 import { deriveProvince } from '@/lib/utils/province';
+import { cleanBarangayName } from '@/lib/utils/barangay-name';
 
 const MW_API =
   'https://rcoi17pzkj.execute-api.ap-southeast-1.amazonaws.com/api/get-service-advisories';
@@ -79,6 +80,8 @@ export function parseMwDate(s: string): Date {
  */
 export function placesToBarangays(places: string[], city: string): Barangay[] {
   const barangays: Barangay[] = [];
+  const seen = new Set<string>();
+  const province = deriveProvince(city);
 
   for (const place of places) {
     const pieces = place
@@ -88,7 +91,12 @@ export function placesToBarangays(places: string[], city: string): Barangay[] {
       .filter(Boolean);
 
     for (const piece of pieces) {
-      barangays.push({ name: piece, city, province: deriveProvince(city) });
+      // One row often repeats a barangay with different punctuation or casing across rows.
+      // Keep the first spelling so the UI shows one pill per barangay, not one per spelling.
+      const key = cleanBarangayName(piece);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      barangays.push({ name: piece, city, province });
     }
   }
 

@@ -18,6 +18,12 @@ describe('placesToBarangays', () => {
       { name: 'Mambugan', city: 'Taguig City', province: 'Metro Manila' },
     ]);
   });
+
+  test('dedupes the same barangay spelled two ways, keeping the first spelling', () => {
+    expect(
+      placesToBarangays(['Portions of Brgy. Sta. Ana', 'Brgy. Sta Ana'], 'Taytay, Rizal'),
+    ).toEqual([{ name: 'Sta. Ana', city: 'Taytay, Rizal', province: 'Rizal' }]);
+  });
 });
 
 describe('parseMwDate', () => {

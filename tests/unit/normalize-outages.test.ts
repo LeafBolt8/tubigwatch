@@ -386,4 +386,45 @@ describe('normalizeOutages', () => {
 
     expect(cityByName.get('Portions of Brgy. Bel-Air')).toBe('Makati');
   });
+
+  it('dedupes barangay spellings that differ only by punctuation or casing', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-11',
+        concessionaire: 'manila-water',
+        status: 'active',
+        reason: 'Declogging and flushing',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [
+              { name: 'Sta. Ana', city: 'Taytay, Rizal', province: 'Rizal' },
+              { name: 'Sta Ana', city: 'Taytay, Rizal', province: 'Rizal' },
+              { name: 'Pinagbuhatan', city: 'Pasig', province: 'Metro Manila' },
+              { name: 'PInagbuhatan', city: 'Pasig', province: 'Metro Manila' },
+            ],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    const byCity = new Map<string, string[]>();
+    for (const outage of normalizeOutages(input)) {
+      byCity.set(
+        outage.city ?? '?',
+        outage.affectedAreas.flatMap((area) => area.barangays.map((b) => b.name)),
+      );
+    }
+
+    expect(byCity.get('Taytay, Rizal')).toEqual(['Sta. Ana']);
+    expect(byCity.get('Pasig')).toEqual(['Pinagbuhatan']);
+  });
 });
