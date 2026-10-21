@@ -7,6 +7,8 @@ import RegisterSW from '@/components/register-sw';
 
 import { Analytics } from '@vercel/analytics/next';
 
+import InstallPrompt from '@/components/install-prompt';
+
 import './globals.css';
 
 const inter = Inter({
@@ -27,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {children}
         <RegisterSW />
         <Analytics />
+        <InstallPrompt />
       </body>
     </html>
   );
