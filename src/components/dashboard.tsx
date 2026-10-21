@@ -316,16 +316,8 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
               }`}
             >
-              {nearMeEnabled ? (
-                <>
-                  <MapPin className="w-4 h-4" />
-                  Near Me: On
-                  <X className="ml-1.5 w-3.5 h-3.5" />
-                </>
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-              {nearMeEnabled ? 'Near Me: On' : 'Near Me'}
+              <MapPin className="w-4 h-4" />
+              {nearMeEnabled ? 'Near Me: On' : 'Near Me'}<X className="ml-1 w-3.5 h-3.5" />
             </button>
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
