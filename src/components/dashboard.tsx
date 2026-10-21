@@ -313,7 +313,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               disabled={isLocating}
               title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
               onClick={toggleNearMe}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-colors border ${
                 isLocating
                   ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed'
                   : nearMeEnabled
@@ -321,9 +321,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                     : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
               }`}
             >
-              <MapPin className="w-4 h-4" />
+              <MapPin className="w-5 h-5" />
               {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
-              {nearMeEnabled && !isLocating && <X className="ml-1 w-3.5 h-3.5" />}
+              {nearMeEnabled && !isLocating && <X className="ml-1 w-4 h-4" />}
             </button>
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
@@ -340,9 +340,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             </span>
             <Link
               href="/map"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium hover:bg-zinc-800 transition-colors"
             >
-              <MapIcon className="w-4 h-4" /> View Map
+              <MapIcon className="w-5 h-5" /> View Map
             </Link>
           </div>
         </header>
@@ -517,7 +517,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                 {badge}
                               </span>
                               <span
-                                className={`px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider ${
+                                className={`px-3 py-1.5 rounded text-sm font-bold uppercase tracking-wider ${
                                   outage.concessionaire === 'manila-water'
                                     ? 'bg-cyan-50 text-cyan-700'
                                     : 'bg-blue-50 text-blue-700'
