@@ -1,5 +1,7 @@
 import { unstable_cache } from 'next/cache';
 
+import { Redis } from '@upstash/redis';
+
 import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
 import { fetchManilaWaterOutages } from '@/lib/ingestion/manila-water';
 import { extractOutagesFromUrl } from '@/lib/ingestion/gemini';
@@ -7,6 +9,11 @@ import { readManualOutages } from './manual-outages';
 import type { Outage } from '@/lib/schemas/outage';
 import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '',
+});
 
 
 function unifyCityName(city: string | undefined): string {
@@ -219,6 +226,20 @@ export const getCachedGeminiOutages = unstable_cache(
       manilaWaterError = mwErr instanceof Error ? mwErr.message : String(mwErr);
     }
 
+    try {
+      const stale = await redis.get<Outage[]>('last-known-good-outages');
+      if (stale && stale.length > 0) {
+        return {
+          outages: stale,
+          errors: [
+            'WARNING: Live fetch failed. Serving stale data from the last successful sync.',
+          ],
+        };
+      }
+    } catch (staleReadErr) {
+      console.warn('Failed to read stale outages fallback:', staleReadErr);
+    }
+
     const manualOutages = await readManualOutages();
     if (manualOutages.length > 0) {
       const mergedManual = dedupById<Outage>([...mayniladOutages, ...manilaWaterOutages, ...manualOutages]);
@@ -228,6 +249,12 @@ export const getCachedGeminiOutages = unstable_cache(
     }
 
     const merged = dedupById<Outage>([...mayniladOutages, ...manilaWaterOutages]);
+
+    try {
+      await redis.set('last-known-good-outages', normalizeOutages(merged));
+    } catch (persistErr) {
+      console.warn('Failed to persist last-known-good-outages:', persistErr);
+    }
 
     const errors: string[] = [];
     if (mayniladError) errors.push(`maynilad: ${mayniladError}`);

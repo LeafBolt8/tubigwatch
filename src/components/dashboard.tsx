@@ -297,7 +297,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           role="status"
           className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-md mb-4 text-sm font-medium"
         >
-          You are currently offline. Showing cached data.
+          You are currently offline. Showing cached data from {now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}.
         </div>
       )}
 

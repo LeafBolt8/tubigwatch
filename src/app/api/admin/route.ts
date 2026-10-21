@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 
+import { timingSafeEqual } from 'crypto';
+
 import { OutageSchema } from '@/lib/schemas/outage';
 import { Redis } from '@upstash/redis';
 
@@ -53,7 +55,8 @@ function adminAuthError(request: NextRequest): NextResponse | null {
   const header = request.headers.get('authorization') ?? '';
   const token = header.startsWith('Bearer ') ? decodeToken(header.slice(7)) : null;
 
-  if (token !== adminPassword) {
+  const isValid = token && token.length === adminPassword.length && timingSafeEqual(Buffer.from(token), Buffer.from(adminPassword));
+  if (!isValid) {
     return unauthorized({ error: 'Unauthorized. Check the admin password.' });
   }
 
