@@ -19,6 +19,16 @@ describe('placesToBarangays', () => {
     ]);
   });
 
+  test('drops "and all its lateral streets" instead of turning it into a barangay', () => {
+    expect(
+      placesToBarangays(['Parts of Brgy. Rizal and all its lateral streets'], 'Pasig City'),
+    ).toEqual([{ name: 'Rizal', city: 'Pasig City', province: 'Metro Manila' }]);
+
+    expect(
+      placesToBarangays(['Portions of Brgy. San Jose (all its lateral streets)'], 'Taytay, Rizal'),
+    ).toEqual([{ name: 'San Jose', city: 'Taytay, Rizal', province: 'Rizal' }]);
+  });
+
   test('dedupes the same barangay spelled two ways, keeping the first spelling', () => {
     expect(
       placesToBarangays(['Portions of Brgy. Sta. Ana', 'Brgy. Sta Ana'], 'Taytay, Rizal'),

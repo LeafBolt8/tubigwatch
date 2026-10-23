@@ -95,6 +95,6 @@ export const getCachedGeminiOutages = unstable_cache(
       return { outages: [], errors: ['Database connection failed.'], fetchedAt: Date.now() };
     }
   },
-  ['gemini-outages-redis-v2'],
-  { revalidate: 3600, tags: ['gemini-outages-redis-v2'] },
+  ['gemini-outages-redis-v3'],
+  { revalidate: 3600, tags: ['gemini-outages-redis-v3'] },
 );

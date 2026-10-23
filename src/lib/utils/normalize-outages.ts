@@ -39,6 +39,9 @@ function unifyCityName(city: string | undefined): string {
     c === 'Paranaque'
   )
     return 'Parañaque';
+  // "Pasig City" and "Pasig" were splitting into two sections for the same city. "Rizal" is a
+  // province, not a city, so it is passed through unchanged.
+  if (c === 'Pasig City' || c === 'Pasig') return 'Pasig';
 
   return c;
 }

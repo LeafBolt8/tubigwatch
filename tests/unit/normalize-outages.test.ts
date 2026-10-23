@@ -320,6 +320,33 @@ describe('normalizeOutages', () => {
     expect(cityByName.get('U.P. Campus')).toBe('Quezon City');
   });
 
+  it('unifies "Pasig City" with "Pasig"', () => {
+    const input: Outage[] = [
+      {
+        id: 'test-pasig',
+        concessionaire: 'manila-water',
+        status: 'active',
+        reason: 'Supply Augmentation',
+        startsAt: new Date('2026-10-15T06:00:00Z'),
+        endsAt: new Date('2026-10-15T18:00:00Z'),
+        affectedAreas: [
+          {
+            barangays: [{ name: 'Barangay Not In Map', city: 'Pasig City', province: 'Metro Manila' }],
+            streets: [],
+            notes: '',
+          },
+        ],
+        source: {
+          url: 'https://example.com/advisories',
+          fetchedAt: new Date(),
+        },
+        confidence: 'official' as const,
+      },
+    ];
+
+    expect(normalizeOutages(input)[0]?.city).toBe('Pasig');
+  });
+
   it('splits an ampersand-separated city string on the first city', () => {
     const input: Outage[] = [
       {

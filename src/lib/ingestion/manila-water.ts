@@ -85,9 +85,27 @@ export function placesToBarangays(places: string[], city: string): Barangay[] {
 
   for (const place of places) {
     const pieces = place
-      .replace(/^portions?\s+of\s+/i, '')
+      // "and all its lateral streets" describes streets, not another barangay. It has to go
+      // before the split on "and", or the phrase's own tail becomes a barangay called
+      // "all its lateral streets".
+      .replace(/\s*\band\b\s+all its lateral streets\b/i, '')
+      .replace(/\s*\ball its lateral streets\b/i, '')
+      // 1. Strip prefixes like "Portions of", "Parts of", "Brgy.", "Brgys."
+      .replace(/^(portions?|parts?)\s+of\s+/i, '')
+      .replace(/^brgys?\.?\s*/i, '')
+      // 2. Split on commas, semicolons, ampersands, and "and"
       .split(/[,;&]|\band\b/i)
-      .map((p) => p.trim().replace(/^brgys?\.?\s*/i, '').trim())
+      .map((p) =>
+        p
+          // 3. Strip "all its lateral streets" in case a separator left it attached
+          .replace(/\s*\band\b\s+all its lateral streets\b/i, '')
+          .replace(/\s*\ball its lateral streets\b/i, '')
+          .trim()
+          .replace(/^brgys?\.?\s*/i, '')
+          // Removal can strand an empty pair of brackets; it is never a barangay name.
+          .replace(/\(\s*\)/g, '')
+          .trim(),
+      )
       .filter(Boolean);
 
     for (const piece of pieces) {
