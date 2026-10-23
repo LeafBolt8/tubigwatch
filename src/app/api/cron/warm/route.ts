@@ -14,20 +14,21 @@ export const maxDuration = 300;
  * cache, which would leave the slow Gemini entry cold. Vercel cron invocations only GET a plain
  * path, so the query-string variant is not reachable from `vercel.json` either.
  *
- * Auth: when `CRON_SECRET` is configured in the Vercel project, Vercel sends it as
- * `Authorization: Bearer <secret>` and any mismatch is rejected. With no secret set the route stays
- * open — it only refreshes a cache and reveals nothing beyond outage counts and source errors.
+ * Auth: Vercel sends `Authorization: Bearer <CRON_SECRET>` when the project defines it, and any
+ * mismatch is rejected. The check is unconditional, so a deployment with no `CRON_SECRET` rejects
+ * every caller instead of leaving the route open.
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
-    return new NextResponse('Unauthorized', { status: 401 });
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const gemini = await getCachedGeminiOutages();
 
   return NextResponse.json(
     {
+      success: true,
       warmedAt: new Date().toISOString(),
       outages: gemini.outages.length,
       sourceErrors: gemini.errors,

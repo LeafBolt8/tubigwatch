@@ -96,7 +96,27 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
       </Suspense>
 
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
-        Verify against mayniladwater.com.ph before relying on this data.
+        <p>
+          Unofficial aggregator. Always verify with{' '}
+          <a
+            href="https://www.mayniladwater.com.ph/service-advisories-2/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-600"
+          >
+            Maynilad
+          </a>{' '}
+          or{' '}
+          <a
+            href="https://www.manilawater.com/customers/service-advisories"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-600"
+          >
+            Manila Water
+          </a>{' '}
+          before relying on this data.
+        </p>
       </footer>
     </main>
   );
