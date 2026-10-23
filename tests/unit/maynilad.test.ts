@@ -459,6 +459,38 @@ describe('fetchMayniladOutages (mocked)', () => {
     expect(requested.filter((u) => u.includes('/emergency'))).toHaveLength(2);
   }, 15_000);
 
+  test('a mid-run abort keeps the rows already read and marks the read incomplete', async () => {
+    // The overall deadline (or a caller's abort) can fire while a page is in flight. Rows from pages
+    // already read must survive that, and the result must not present itself as a complete read.
+    const pageOne =
+      '<div id="emergency_sched" class="table-container" data-page="1" data-max="9" data-next="111">' +
+      '<table class="advisory-table"><thead><tr><th>City</th><th>Barangay</th><th>Specific Area</th>' +
+      '<th>From</th><th>To</th><th>Time</th><th>Reason</th></tr></thead><tbody>' +
+      '<tr><td>Quezon City</td><td>Brgy. One</td><td>at One</td><td>October 15, 2026</td>' +
+      '<td>October 16, 2026</td><td>11:00 PM to 6:00 AM</td><td>Repair One</td></tr>' +
+      '</tbody></table></div>';
+
+    const controller = new AbortController();
+    const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+    globalThis.fetch = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      const ok = { status: 200, headers: { 'content-type': 'application/json; charset=UTF-8' } };
+      if (url.endsWith('/emergency')) return Promise.resolve(new Response(JSON.stringify(pageOne), ok));
+      if (url.includes('/emergency?id=')) {
+        // Abort while this page is in flight, exactly as the deadline does.
+        controller.abort();
+        return Promise.reject(abortError());
+      }
+      return Promise.resolve(new Response(rotationalRaw, ok));
+    });
+
+    const result = await fetchMayniladOutages({ signal: controller.signal });
+
+    expect(result.outages.map((o) => o.reason)).toEqual(['Repair One']);
+    expect(result.endpoints[0]?.stoppedReason).toBe('aborted');
+    expect(result.truncated).toBe(true);
+  }, 15_000);
+
   test('all endpoints failing yields freshness unavailable + sourceErrors', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await fetchMayniladOutages();

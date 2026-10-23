@@ -24,8 +24,11 @@
 //     capped read is distinguishable from a finished one: 'byte-identical' (a page repeated the
 //     previous body), 'data-max-reached' (the server handed back no new cursor — what reaching the
 //     last advertised page looks like on the wire, and also what an endpoint with no cursor at all
-//     reports), 'cap-hit' (a live cursor was left unread at MAX_PAGES) or 'fetch-error'.
+//     reports), 'cap-hit' (a live cursor was left unread at MAX_PAGES), 'aborted' (the overall
+//     deadline fired mid-page; rows read before it are kept) or 'fetch-error'.
 //   - One request per second max (in-process throttle), to be polite to Maynilad's server.
+//   - OVERALL_TIMEOUT_MS bounds the whole scrape, not one request: the routes allow 300 s, so an
+//     abort at 180 s still leaves time to build and return the rows already read.
 //
 // Pipeline:
 //   fetch -> parse JSON string -> extract HTML table fragment -> parseHtmlTable() ->
@@ -67,9 +70,11 @@ type MayniladEndpoint = (typeof ENDPOINTS)[number];
 
 const THROTTLE_MS = 1000;
 const FETCH_TIMEOUT_MS = 60_000;
+/** Deadline for the whole scrape, not one request. */
+const OVERALL_TIMEOUT_MS = 180_000;
 
 /** Hard cap on pages per endpoint (page 1 included). */
-const MAX_PAGES = 20;
+const MAX_PAGES = 10;
 /** Pause before asking for another page, so a paginated run stays gentle. */
 const PAGE_GAP_MS = 500;
 
@@ -80,7 +85,7 @@ export type MayniladFetchResult = {
   fetchedAt: Date;
   /** Total page requests made across all endpoints (page 1 of each endpoint counts as one). */
   pagesFetched: number;
-  /** True when an endpoint stopped because of MAX_PAGES while a cursor was still live. */
+  /** True when rows were left unread: the cap stopped a live cursor, or the deadline aborted a page. */
   truncated: boolean;
   /** Per-endpoint counters, in ENDPOINTS order — one entry per endpoint, errored ones included. */
   endpoints: MayniladEndpointStats[];
@@ -171,7 +176,12 @@ function readDataPage(fragment: string): number {
 }
 
 /** Why an endpoint stopped. 'fetch-error' is set by the caller of the endpoint fetch. */
-export type MayniladStopReason = 'byte-identical' | 'data-max-reached' | 'cap-hit' | 'fetch-error';
+export type MayniladStopReason =
+  | 'byte-identical'
+  | 'data-max-reached'
+  | 'cap-hit'
+  | 'aborted'
+  | 'fetch-error';
 
 /** Per-endpoint counters, so a caller can tell a complete read from a capped one. */
 export type MayniladEndpointStats = {
@@ -217,7 +227,11 @@ async function fetchMayniladEndpoint(
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: signal?.aborted
+        ? `aborted at the ${OVERALL_TIMEOUT_MS / 1000}s deadline before this endpoint was read`
+        : err instanceof Error
+          ? err.message
+          : String(err),
       stats: { ...progress, stoppedReason: 'fetch-error' },
     };
   }
@@ -294,7 +308,18 @@ async function fetchMayniladEndpointPages(
     }
 
     await sleep(PAGE_GAP_MS);
-    const pageBody = await fetchJsonText(`${url}?id=${encodeURIComponent(cursor)}`, signal);
+    let pageBody: string;
+    try {
+      pageBody = await fetchJsonText(`${url}?id=${encodeURIComponent(cursor)}`, signal);
+    } catch (err) {
+      if (signal?.aborted) {
+        // The deadline fired mid-page: keep this endpoint's rows rather than discarding them, and
+        // let 'aborted' mark the read as incomplete. Other errors stay fatal for the endpoint.
+        progress.stoppedReason = 'aborted';
+        return { ok: true, rows, stats: { ...progress } };
+      }
+      throw err;
+    }
     progress.pagesFetched++; // the request was made, whether or not it carried anything new
 
     // data-page and data-next live inside the body: identical bytes mean the cursor did not move,
@@ -475,89 +500,107 @@ export async function fetchMayniladOutages(opts?: {
   /** Page cap per endpoint; defaults to MAX_PAGES. Mainly for bounded smoke runs. */
   maxPages?: number;
 }): Promise<MayniladFetchResult> {
-  const fetchedAt = new Date();
-  const sourceErrors: string[] = [];
-  const allRows: Array<{ row: PartialOutageRow; type: MayniladEndpoint }> = [];
-  const maxPages = Math.max(1, opts?.maxPages ?? MAX_PAGES);
-  let pagesFetched = 0;
-  let truncated = false;
-  const endpoints: MayniladEndpointStats[] = [];
+  // One deadline for the whole scrape. Aborting stops further requests; it does not throw away the
+  // rows already read, so the page loads with whatever came back inside the window.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OVERALL_TIMEOUT_MS);
 
-  for (const type of ENDPOINTS) {
-    const startedAt = Date.now();
-    const outcome = await fetchMayniladEndpoint(type, opts?.signal, maxPages);
-    pagesFetched += outcome.stats.pagesFetched;
-    if (outcome.stats.stoppedReason === 'cap-hit') truncated = true;
-    if (!outcome.ok) sourceErrors.push(`${type}: ${outcome.error}`);
-    for (const row of outcome.ok ? outcome.rows : []) {
-      allRows.push({ row, type });
+  // A caller's signal still ends this run, so the internal deadline never hides an outer cancel.
+  const callerSignal = opts?.signal;
+  const relayAbort = () => controller.abort();
+  if (callerSignal?.aborted) controller.abort();
+  else callerSignal?.addEventListener('abort', relayAbort, { once: true });
+
+  try {
+    const fetchedAt = new Date();
+    const sourceErrors: string[] = [];
+    const allRows: Array<{ row: PartialOutageRow; type: MayniladEndpoint }> = [];
+    const maxPages = Math.max(1, opts?.maxPages ?? MAX_PAGES);
+    let pagesFetched = 0;
+    let truncated = false;
+    const endpoints: MayniladEndpointStats[] = [];
+
+    for (const type of ENDPOINTS) {
+      const startedAt = Date.now();
+      const outcome = await fetchMayniladEndpoint(type, controller.signal, maxPages);
+      pagesFetched += outcome.stats.pagesFetched;
+      if (outcome.stats.stoppedReason === 'cap-hit' || outcome.stats.stoppedReason === 'aborted') {
+        truncated = true;
+      }
+      if (!outcome.ok) sourceErrors.push(`${type}: ${outcome.error}`);
+      for (const row of outcome.ok ? outcome.rows : []) {
+        allRows.push({ row, type });
+      }
+      endpoints.push({
+        endpoint: type,
+        rowsCollected: outcome.ok ? outcome.rows.length : 0,
+        outagesBuilt: 0, // filled in once the groups are validated
+        elapsedMs: Date.now() - startedAt,
+        ...outcome.stats,
+      });
     }
-    endpoints.push({
-      endpoint: type,
-      rowsCollected: outcome.ok ? outcome.rows.length : 0,
-      outagesBuilt: 0, // filled in once the groups are validated
-      elapsedMs: Date.now() - startedAt,
-      ...outcome.stats,
-    });
-  }
 
-  // Group rows by (startsAt, endsAt, reason) and build one Outage per group.
-  const groups = new Map<string, Array<{ row: PartialOutageRow; type: MayniladEndpoint }>>();
-  for (const entry of allRows) {
-    const k = groupKey(entry.row);
-    let g = groups.get(k);
-    if (!g) {
-      g = [];
-      groups.set(k, g);
+    // Group rows by (startsAt, endsAt, reason) and build one Outage per group.
+    const groups = new Map<string, Array<{ row: PartialOutageRow; type: MayniladEndpoint }>>();
+    for (const entry of allRows) {
+      const k = groupKey(entry.row);
+      let g = groups.get(k);
+      if (!g) {
+        g = [];
+        groups.set(k, g);
+      }
+      g.push(entry);
     }
-    g.push(entry);
-  }
 
-  const outages: OutageSchemaType[] = [];
-  const outageOrigins: MayniladEndpoint[][] = [];
-  for (const entries of groups.values()) {
-    // Build one outage from the group. Use the type of the first entry as the source URL context.
-    const first = entries[0]!;
-    const outage = buildOutage(entries.map((e) => e.row), first.type);
-    // Ungroupable rows (no anchored start) are dropped rather than guessed at.
-    if (!outage) continue;
-    // Re-fetch source URL to the specific endpoint we used (best effort).
-    outage.source.url = `${MAYNI_BASE}/${first.type}`;
-    outage.source.fetchedAt = fetchedAt;
-    outages.push(outage);
-    outageOrigins.push([...new Set(entries.map((e) => e.type))]);
-  }
-
-  // Validate every built outage through the schema. A failing outage is dropped (logged to
-  // sourceErrors) rather than failing the whole fetch.
-  const validated: OutageSchemaType[] = [];
-  const validatedOrigins: MayniladEndpoint[][] = [];
-  for (let i = 0; i < outages.length; i++) {
-    const result = OutageSchema.safeParse(outages[i]);
-    if (result.success) {
-      validated.push(result.data);
-      validatedOrigins.push(outageOrigins[i]!);
-    } else {
-      sourceErrors.push(`outage validation failed: ${JSON.stringify(result.error.issues)}`);
+    const outages: OutageSchemaType[] = [];
+    const outageOrigins: MayniladEndpoint[][] = [];
+    for (const entries of groups.values()) {
+      // Build one outage from the group. Use the type of the first entry as the source URL context.
+      const first = entries[0]!;
+      const outage = buildOutage(entries.map((e) => e.row), first.type);
+      // Ungroupable rows (no anchored start) are dropped rather than guessed at.
+      if (!outage) continue;
+      // Re-fetch source URL to the specific endpoint we used (best effort).
+      outage.source.url = `${MAYNI_BASE}/${first.type}`;
+      outage.source.fetchedAt = fetchedAt;
+      outages.push(outage);
+      outageOrigins.push([...new Set(entries.map((e) => e.type))]);
     }
+
+    // Validate every built outage through the schema. A failing outage is dropped (logged to
+    // sourceErrors) rather than failing the whole fetch.
+    const validated: OutageSchemaType[] = [];
+    const validatedOrigins: MayniladEndpoint[][] = [];
+    for (let i = 0; i < outages.length; i++) {
+      const result = OutageSchema.safeParse(outages[i]);
+      if (result.success) {
+        validated.push(result.data);
+        validatedOrigins.push(outageOrigins[i]!);
+      } else {
+        sourceErrors.push(`outage validation failed: ${JSON.stringify(result.error.issues)}`);
+      }
+    }
+
+    // Attribute each surviving outage back to every endpoint that fed its group.
+    for (const stats of endpoints) {
+      stats.outagesBuilt = validatedOrigins.filter((types) => types.includes(stats.endpoint)).length;
+    }
+
+    // Freshness: 'unavailable' only if ALL endpoints failed.
+    const freshness =
+      validated.length === 0 && sourceErrors.length > 0 ? 'unavailable' : 'fresh';
+
+    return {
+      outages: validated,
+      freshness,
+      sourceErrors,
+      fetchedAt,
+      pagesFetched,
+      truncated,
+      endpoints,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', relayAbort);
   }
-
-  // Attribute each surviving outage back to every endpoint that fed its group.
-  for (const stats of endpoints) {
-    stats.outagesBuilt = validatedOrigins.filter((types) => types.includes(stats.endpoint)).length;
-  }
-
-  // Freshness: 'unavailable' only if ALL endpoints failed.
-  const freshness =
-    validated.length === 0 && sourceErrors.length > 0 ? 'unavailable' : 'fresh';
-
-  return {
-    outages: validated,
-    freshness,
-    sourceErrors,
-    fetchedAt,
-    pagesFetched,
-    truncated,
-    endpoints,
-  };
 }
