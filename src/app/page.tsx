@@ -55,13 +55,10 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
     for (const err of gemini.errors) {
       sourceErrors.push(err);
     }
-    if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
-      sourceErrors.push('Gemini API key not configured — AI extraction is unavailable');
-    }
     pageData = {
       mode: 'live',
       outages: gemini.outages,
-      freshness: 'fresh',
+      freshness: sourceErrors.length > 0 ? 'stale' : 'fresh',
       sourceErrors,
       truncated: false,
     };
@@ -69,7 +66,12 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
 
   const { outages, freshness, sourceErrors } = pageData;
 
-  const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
+  const mayniladError = sourceErrors.find(
+    (e) =>
+      e.startsWith('maynilad:') ||
+      e.startsWith('WARNING:') ||
+      e.startsWith('Database connection failed.'),
+  );
   const sourceLabel = isFixtures ? 'Source: Maynilad + Manila Water · Data mode: fixtures (not live)' : undefined;
 
   return (

@@ -3,6 +3,9 @@ import { unstable_cache } from 'next/cache';
 import { Redis } from '@upstash/redis';
 
 import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
+import { readManualOutages } from './manual-outages';
+import { dedupById } from '@/lib/utils/dedup';
+import { normalizeOutages } from '@/lib/utils/normalize-outages';
 import type { Outage } from '@/lib/schemas/outage';
 
 const redis = new Redis({
@@ -41,14 +44,16 @@ export const getCachedMayniladOutages = unstable_cache(
 /***
  * Cached read of the snapshot the scheduled GitHub Action writes to Redis.
  *
- * Vercel no longer scrapes for the dashboard: `scripts/scrape.ts` runs every 6 hours and stores the
+ * Vercel does not scrape for the dashboard: `scripts/scrape.ts` runs every 6 hours and stores the
  * normalised rows under `last-known-good-outages`. This reader serves that snapshot, so a render
  * costs one Redis round-trip instead of a multi-minute scrape.
  *
- * - revalidate: 3600 s, matching the scrape cadence: a visitor is never more than one cycle behind,
- *   without a Redis read per request.
- * - An empty store, or an empty outage list, is reported as an error with no rows. It must never be
- *   presented as "no outages today".
+ * - Manual overrides stored by `/api/admin` are merged in, so an operator's row is not hidden
+ *   behind the scraped snapshot.
+ * - A snapshot older than 36 h is still served, but with an error message: a dead scraper must not
+ *   look like a quiet day.
+ * - An empty store, or an empty outage list, is reported as an error with any manual rows attached.
+ * - revalidate: 3600 s, matching the scrape cadence, without a Redis read per request.
  */
 export type GeminiCachedOutagesResult = {
   outages: Outage[];
@@ -62,26 +67,34 @@ export const getCachedGeminiOutages = unstable_cache(
       const data = await redis.get<{ outages: Outage[]; timestamp: number }>(
         'last-known-good-outages',
       );
+      const manualOutages = await readManualOutages();
 
-      if (data && data.outages && data.outages.length > 0) {
+      if (!data || !data.outages || data.outages.length === 0) {
         return {
-          outages: data.outages,
-          errors: [],
-          fetchedAt: data.timestamp,
+          outages: manualOutages,
+          errors: ['No data available yet. The scraper is warming up.'],
+          fetchedAt: Date.now(),
         };
       }
 
-      // No snapshot yet (or one with no rows): the scraper has not stored anything usable.
-      return {
-        outages: [],
-        errors: ['No data available yet. The scraper is warming up.'],
-        fetchedAt: Date.now(),
-      };
+      const ageHours = (Date.now() - data.timestamp) / (1000 * 60 * 60);
+      const errors: string[] = [];
+
+      if (ageHours > 36) {
+        errors.push(`WARNING: Data is ${Math.round(ageHours)} hours old. The scraper may be broken.`);
+      }
+
+      const merged =
+        manualOutages.length > 0
+          ? dedupById<Outage>([...data.outages, ...manualOutages])
+          : data.outages;
+
+      return { outages: normalizeOutages(merged), errors, fetchedAt: data.timestamp };
     } catch (error) {
       console.error('Failed to read from Redis:', error);
       return { outages: [], errors: ['Database connection failed.'], fetchedAt: Date.now() };
     }
   },
-  ['gemini-outages-redis'],
-  { revalidate: 3600, tags: ['gemini-outages-redis'] },
+  ['gemini-outages-redis-v2'],
+  { revalidate: 3600, tags: ['gemini-outages-redis-v2'] },
 );

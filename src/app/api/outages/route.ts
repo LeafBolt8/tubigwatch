@@ -62,16 +62,13 @@ export async function GET(request: NextRequest) {
     for (const err of gemini.errors) {
       sourceErrors.push(err);
     }
-    if (process.env.GEMINI_API_KEY === undefined || process.env.GEMINI_API_KEY === '') {
-      sourceErrors.push('GEMINI_API_KEY not set — Gemini path is not configured');
-    }
 
     return NextResponse.json(
       {
         outages: gemini.outages,
-        freshness: 'fresh' as const,
+        freshness: sourceErrors.length > 0 ? ('stale' as const) : ('fresh' as const),
         fetchedAt: new Date().toISOString(),
-        sourceErrors: sourceErrors.length > 0 ? sourceErrors : [],
+        sourceErrors,
         truncated: false,
       },
       {
