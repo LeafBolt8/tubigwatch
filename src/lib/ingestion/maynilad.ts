@@ -69,7 +69,7 @@ const THROTTLE_MS = 1000;
 const FETCH_TIMEOUT_MS = 60_000;
 
 /** Hard cap on pages per endpoint (page 1 included). */
-const MAX_PAGES = 5;
+const MAX_PAGES = 20;
 /** Pause before asking for another page, so a paginated run stays gentle. */
 const PAGE_GAP_MS = 500;
 
