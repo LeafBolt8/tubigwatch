@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeOutages } from '@/lib/cache/outages';
+import { normalizeOutages } from '@/lib/utils/normalize-outages';
 import type { Outage } from '@/lib/schemas/outage';
 
 describe('normalizeOutages', () => {

@@ -70,7 +70,7 @@ type MayniladEndpoint = (typeof ENDPOINTS)[number];
 
 const THROTTLE_MS = 1000;
 const FETCH_TIMEOUT_MS = 60_000;
-/** Deadline for the whole scrape, not one request. */
+/** Default deadline for the whole scrape, not one request; callers may override it. */
 const OVERALL_TIMEOUT_MS = 180_000;
 
 /** Hard cap on pages per endpoint (page 1 included). */
@@ -228,7 +228,7 @@ async function fetchMayniladEndpoint(
     return {
       ok: false,
       error: signal?.aborted
-        ? `aborted at the ${OVERALL_TIMEOUT_MS / 1000}s deadline before this endpoint was read`
+        ? 'aborted before this endpoint was read'
         : err instanceof Error
           ? err.message
           : String(err),
@@ -501,9 +501,11 @@ export async function fetchMayniladOutages(opts?: {
   maxPages?: number;
 }): Promise<MayniladFetchResult> {
   // One deadline for the whole scrape. Aborting stops further requests; it does not throw away the
-  // rows already read, so the page loads with whatever came back inside the window.
+  // rows already read, so the caller gets whatever came back inside the window. A scheduled job
+  // passes its own budget; request-bound callers fall back to OVERALL_TIMEOUT_MS.
+  const deadlineMs = Math.max(1, opts?.timeoutMs ?? OVERALL_TIMEOUT_MS);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OVERALL_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), deadlineMs);
 
   // A caller's signal still ends this run, so the internal deadline never hides an outer cancel.
   const callerSignal = opts?.signal;

@@ -105,10 +105,10 @@ export async function POST(request: NextRequest) {
     await redis.set('manual-outages', { servedAt, rows });
 
     try {
-      revalidateTag('gemini-outages-v16');
+      revalidateTag('gemini-outages-redis');
     } catch (revalidateErr) {
       const message = revalidateErr instanceof Error ? revalidateErr.message : String(revalidateErr);
-      console.warn('admin: failed to revalidate gemini-outages tag after manual override:', message);
+      console.warn('admin: failed to revalidate gemini-outages-redis tag after manual override:', message);
     }
 
     try {

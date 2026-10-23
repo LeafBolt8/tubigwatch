@@ -491,6 +491,30 @@ describe('fetchMayniladOutages (mocked)', () => {
     expect(result.truncated).toBe(true);
   }, 15_000);
 
+  test('a caller-supplied timeoutMs replaces the default scrape deadline', async () => {
+    // The scheduled scraper passes its own 8-minute budget. If that option were ignored, the run
+    // would still stop at the 180 s default, so a 50 ms deadline has to end this call quickly.
+    globalThis.fetch = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+        new Promise((_resolve, reject) => {
+          const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+          if (init?.signal?.aborted) {
+            reject(abortError());
+            return;
+          }
+          init?.signal?.addEventListener('abort', () => reject(abortError()));
+        }),
+    );
+
+    const started = Date.now();
+    const result = await fetchMayniladOutages({ timeoutMs: 50 });
+
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(result.outages).toEqual([]);
+    expect(result.freshness).toBe('unavailable');
+    expect(result.sourceErrors).toHaveLength(3);
+  }, 15_000);
+
   test('all endpoints failing yields freshness unavailable + sourceErrors', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await fetchMayniladOutages();
