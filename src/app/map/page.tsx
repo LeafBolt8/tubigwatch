@@ -1,7 +1,7 @@
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
-import type { OutageStatus } from '@/lib/schemas/outage-status';
+import { computeStatus } from '@/lib/utils/outage-status';
 import Link from 'next/link';
 import { Map as MapIcon } from 'lucide-react';
 import MapClient from '@/components/map-client';
@@ -17,27 +17,6 @@ type PageData = {
   sourceErrors: Array<string>;
   truncated: boolean;
 };
-
-function computeStatus(outage: Outage, now: Date): OutageStatus {
-  // Mirror the dashboard rule: a past endsAt always restores, regardless of raw status.
-  const endsAt = outage.endsAt ? new Date(outage.endsAt) : null;
-  if (endsAt && endsAt <= now) {
-    return 'restored';
-  }
-  if (outage.status) return outage.status;
-
-  const startsAt = outage.startsAt ?? null;
-  const endsAtLocal = outage.endsAt ?? null;
-  if (!startsAt && !endsAtLocal) return 'unknown';
-
-  const started = startsAt !== null && startsAt <= now;
-  const ended = endsAtLocal !== null && endsAtLocal <= now;
-
-  if (ended) return 'restored';
-  if (outage.scheduled) return 'scheduled';
-  if (started) return 'active';
-  return 'unknown';
-}
 
 function statusCounts(outages: Outage[], now: Date): { active: number; scheduled: number } {
   let active = 0;
@@ -127,7 +106,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
         </div>
 
         <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-medium text-zinc-600">
-          {active} active · {scheduled} scheduled · {visibleOutages.length} shown
+          {active} active · {scheduled} scheduled · {visibleOutages.length} total
           {statusUnknown ? ' · some status unknown' : ''}
         </p>
       </div>
