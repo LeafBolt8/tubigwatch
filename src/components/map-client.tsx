@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import type { Outage } from '@/lib/schemas/outage';
 import { computeStatus } from '@/lib/utils/outage-status';
 
@@ -12,6 +13,16 @@ const OutageMap = dynamic(
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
+
+// A hand-edited or truncated share link must fall back to the unfiltered view instead of
+// rendering no selected pill and an empty map.
+function parseStatusFilter(raw: string | null): StatusFilter {
+  return raw === 'active' || raw === 'scheduled' ? raw : 'all';
+}
+
+function parseProviderFilter(raw: string | null): ProviderFilter {
+  return raw === 'maynilad' || raw === 'manila-water' ? raw : 'all';
+}
 
 type FilterOption<T extends string> = { value: T; label: string };
 
@@ -73,8 +84,42 @@ type MapClientProps = {
 };
 
 export default function MapClient({ outages }: MapClientProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all');
+  const searchParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    parseStatusFilter(searchParams.get('status')),
+  );
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>(() =>
+    parseProviderFilter(searchParams.get('provider')),
+  );
+
+  // replaceState keeps the URL shareable without adding a history entry per filter click.
+  const updateUrl = (newStatus: StatusFilter, newProvider: ProviderFilter) => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (newStatus !== 'all') params.set('status', newStatus);
+    else params.delete('status');
+    if (newProvider !== 'all') params.set('provider', newProvider);
+    else params.delete('provider');
+
+    const queryString = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${queryString ? `?${queryString}` : ''}`,
+    );
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setStatusFilter(parseStatusFilter(params.get('status')));
+      setProviderFilter(parseProviderFilter(params.get('provider')));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const now = new Date();
   const filtersActive = statusFilter !== 'all' || providerFilter !== 'all';
@@ -91,13 +136,19 @@ export default function MapClient({ outages }: MapClientProps) {
           label="Status"
           value={statusFilter}
           options={STATUS_OPTIONS}
-          onChange={setStatusFilter}
+          onChange={(value) => {
+            setStatusFilter(value);
+            updateUrl(value, providerFilter);
+          }}
         />
         <FilterGroup
           label="Provider"
           value={providerFilter}
           options={PROVIDER_OPTIONS}
-          onChange={setProviderFilter}
+          onChange={(value) => {
+            setProviderFilter(value);
+            updateUrl(statusFilter, value);
+          }}
         />
         {filtersActive && filteredOutages.length === 0 && (
           <p role="status" className="text-sm font-medium text-zinc-600">
