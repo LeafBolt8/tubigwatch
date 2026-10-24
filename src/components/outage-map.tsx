@@ -32,9 +32,11 @@ function MapRecenter({ center }: { center: [number, number] }) {
 
 type OutageMapProps = {
   outages: Outage[];
+  statusFilter: 'all' | 'active' | 'scheduled';
+  providerFilter: 'all' | 'maynilad' | 'manila-water';
 };
 
-export default function OutageMap({ outages }: OutageMapProps) {
+export default function OutageMap({ outages, statusFilter, providerFilter }: OutageMapProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
 
   // Only follow the "near me" preference the dashboard already stores, so the map never asks for
@@ -123,7 +125,9 @@ export default function OutageMap({ outages }: OutageMapProps) {
                   <p className="font-bold">{city}</p>
                   <p>{count} outage{count === 1 ? '' : 's'} in {city}</p>
                   <Link
-                    href={`/?city=${encodeURIComponent(city)}`}
+                    href={`/?city=${encodeURIComponent(city)}${
+                      statusFilter !== 'all' ? `&status=${statusFilter}` : ''
+                    }${providerFilter !== 'all' ? `&provider=${providerFilter}` : ''}`}
                     className="mt-2 inline-block bg-blue-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
                   >
                     View Details

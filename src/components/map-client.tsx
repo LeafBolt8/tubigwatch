@@ -158,7 +158,11 @@ export default function MapClient({ outages }: MapClientProps) {
       </div>
 
       <Suspense fallback={<p className="text-zinc-500">Loading map...</p>}>
-        <OutageMap outages={filteredOutages} />
+        <OutageMap
+          outages={filteredOutages}
+          statusFilter={statusFilter}
+          providerFilter={providerFilter}
+        />
       </Suspense>
 
       <div className="flex flex-wrap gap-4 mt-4 text-sm text-zinc-600 justify-center">
