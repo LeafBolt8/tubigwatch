@@ -775,7 +775,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                           </div>
 
                           {outage.reason && (
-                            <p className="text-xl font-bold text-zinc-900 mt-3 leading-relaxed">{outage.reason}</p>
+                            <p className="text-2xl md:text-3xl font-bold text-zinc-900 mt-3">{outage.reason}</p>
                           )}
 
                           {allBarangays.length > 0 && (
@@ -786,7 +786,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                 return (
                                   <span
                                     key={b}
-                                    className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-700 text-lg font-medium px-4 py-2 rounded-lg"
+                                    className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-700 text-lg md:text-xl font-medium px-4 py-2 rounded-lg"
                                   >
                                     Brgy. {b}
                                     <button

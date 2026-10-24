@@ -128,7 +128,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
                     href={`/?city=${encodeURIComponent(city)}${
                       statusFilter !== 'all' ? `&status=${statusFilter}` : ''
                     }${providerFilter !== 'all' ? `&provider=${providerFilter}` : ''}`}
-                    className="mt-2 inline-block bg-blue-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
+                    className="mt-3 block w-full text-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white! transition-colors hover:bg-blue-700"
                   >
                     View Details
                   </Link>
