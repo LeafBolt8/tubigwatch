@@ -134,9 +134,9 @@ export default function EnablePush() {
         disabled={status === 'subscribing' || !VAPID_PUBLIC_KEY}
         title={VAPID_PUBLIC_KEY ? undefined : 'Push notifications are not configured'}
         onClick={handleEnable}
-        className="inline-flex min-h-11 items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-colors border bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors border bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-4 h-4" />
         {status === 'subscribing' ? 'Enabling…' : 'Enable Notifications'}
       </button>
       {message && (
