@@ -13,6 +13,8 @@ import { cleanBarangayName } from '@/lib/utils/barangay-name';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
+type FavoriteType = 'city' | 'barangay';
+type Favorite = { type: FavoriteType; name: string };
 
 function computeStatus(outage: Outage, now: Date): OutageStatus {
   // 1. Check if it has already ended — always restore, regardless of raw status.
@@ -125,14 +127,8 @@ function favoriteKeysForName(name: string): string[] {
     .filter(Boolean);
 }
 
-function outageFavoriteKeys(outage: Outage): string[] {
-  return outage.affectedAreas.flatMap((area) =>
-    area.barangays.flatMap((barangay) => favoriteKeysForName(barangay.name)),
-  );
-}
-
-const FAVORITES_KEY = 'tubigwatch_favorites';
-const EMPTY_FAVORITES: string[] = [];
+const FAVORITES_KEY = 'tubigwatch_favorites_v2';
+const EMPTY_FAVORITES: Favorite[] = [];
 
 /**
  * Favorites live in localStorage, not React state: that keeps them across reloads without a
@@ -140,20 +136,33 @@ const EMPTY_FAVORITES: string[] = [];
  * The raw string is cached so repeated snapshots return the same array reference.
  */
 let favoritesRawCache: string | null = null;
-let favoritesCache: string[] = EMPTY_FAVORITES;
+let favoritesCache: Favorite[] = EMPTY_FAVORITES;
 
-function parseFavorites(raw: string): string[] {
+function parseFavorites(raw: string): Favorite[] {
   try {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === 'string')
-      : EMPTY_FAVORITES;
+    if (!Array.isArray(parsed)) return EMPTY_FAVORITES;
+
+    const favorites: Favorite[] = [];
+    for (const value of parsed) {
+      if (!value || typeof value !== 'object') continue;
+      const candidate = value as { type?: unknown; name?: unknown };
+      if (
+        (candidate.type === 'city' || candidate.type === 'barangay') &&
+        typeof candidate.name === 'string' &&
+        candidate.name.length > 0
+      ) {
+        favorites.push({ type: candidate.type, name: candidate.name });
+      }
+    }
+
+    return favorites.length > 0 ? favorites : EMPTY_FAVORITES;
   } catch {
     return EMPTY_FAVORITES;
   }
 }
 
-function getFavoritesSnapshot(): string[] {
+function getFavoritesSnapshot(): Favorite[] {
   const raw = window.localStorage.getItem(FAVORITES_KEY) ?? '';
   if (raw !== favoritesRawCache) {
     favoritesRawCache = raw;
@@ -162,7 +171,7 @@ function getFavoritesSnapshot(): string[] {
   return favoritesCache;
 }
 
-function getServerFavoritesSnapshot(): string[] {
+function getServerFavoritesSnapshot(): Favorite[] {
   return EMPTY_FAVORITES;
 }
 
@@ -324,10 +333,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     };
   }, []);
 
-  const toggleFavorite = (barangayKey: string) => {
-    const next = favorites.includes(barangayKey)
-      ? favorites.filter((key) => key !== barangayKey)
-      : [...favorites, barangayKey];
+  const isFavorited = (type: FavoriteType, name: string) =>
+    favorites.some((favorite) => favorite.type === type && favorite.name === name);
+
+  const toggleFavorite = (type: FavoriteType, name: string) => {
+    const next = isFavorited(type, name)
+      ? favorites.filter((favorite) => !(favorite.type === type && favorite.name === name))
+      : [...favorites, { type, name }];
     try {
       window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
     } catch {
@@ -336,8 +348,27 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     window.dispatchEvent(new Event('tubigwatch-favorites'));
   };
 
-  const outageHasFavorite = (outage: Outage) =>
-    outageFavoriteKeys(outage).some((key) => favorites.includes(key));
+  /**
+   * A card is pinned when a city pin matches the heading it is listed under (or one of its
+   * barangays' cities), or a barangay pin matches one of its cleaned barangay names.
+   */
+  const outageHasFavorite = (outage: Outage, cityHeading?: string) =>
+    favorites.some((favorite) => {
+      if (favorite.type === 'city') {
+        return (
+          favorite.name === cityHeading ||
+          outage.city === favorite.name ||
+          outage.affectedAreas.some((area) =>
+            area.barangays.some((barangay) => barangay.city === favorite.name),
+          )
+        );
+      }
+      return outage.affectedAreas.some((area) =>
+        area.barangays.some((barangay) =>
+          favoriteKeysForName(barangay.name).includes(favorite.name),
+        ),
+      );
+    });
 
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
@@ -600,9 +631,24 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <li key={city}>
               <h2
                 id={`city-${encodeURIComponent(city)}`}
-                className="bg-white/90 inline-block px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold text-slate-800 mb-4 scroll-mt-24"
+                className="bg-white/90 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold text-slate-800 mb-4 scroll-mt-24"
               >
                 {city ?? 'Unknown'}
+                <button
+                  type="button"
+                  aria-label={isFavorited('city', city) ? `Unpin ${city}` : `Pin ${city}`}
+                  title={isFavorited('city', city) ? 'Unpin city' : 'Pin city'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleFavorite('city', city);
+                  }}
+                  className="text-zinc-400 hover:text-blue-600 transition-colors"
+                >
+                  <Pin
+                    className={`w-6 h-6 ${isFavorited('city', city) ? 'fill-blue-600 text-blue-600' : ''}`}
+                  />
+                </button>
               </h2>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {groupedByCity.get(city)?.map((outage) => {
@@ -627,7 +673,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                       ),
                     ),
                   );
-                  const favorite = outageHasFavorite(outage);
+                  const favorite = outageHasFavorite(outage, city);
                   const timeRange = [localTime(outage.startsAt ?? null, now), localTime(outage.endsAt ?? null, now)]
                     .filter((t) => t !== 'unknown time')
                     .join(' – ');
@@ -694,7 +740,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                             <div className="flex flex-wrap gap-2 mt-2">
                               {allBarangays.map((b) => {
                                 const key = cleanBarangayName(b);
-                                const pinned = favorites.includes(key);
+                                const pinned = isFavorited('barangay', key);
                                 return (
                                   <span
                                     key={b}
@@ -708,15 +754,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        toggleFavorite(key);
+                                        toggleFavorite('barangay', key);
                                       }}
                                       className="text-zinc-400 hover:text-blue-600 transition-colors"
                                     >
-                                      {pinned ? (
-                                        <Pin className="w-4 h-4 fill-blue-600 text-blue-600" />
-                                      ) : (
-                                        <Pin className="w-4 h-4" />
-                                      )}
+                                      <Pin
+                                        className={`w-4 h-4 ${pinned ? 'fill-blue-600 text-blue-600' : ''}`}
+                                      />
                                     </button>
                                   </span>
                                 );
