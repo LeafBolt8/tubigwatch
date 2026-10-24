@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
+type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
 
 function computeStatus(outage: Outage, now: Date): OutageStatus {
   // 1. Check if it has already ended — always restore, regardless of raw status.
@@ -106,6 +107,10 @@ function parseStatusFilter(raw: string | null): StatusFilter {
   return raw === 'active' || raw === 'scheduled' ? raw : 'all';
 }
 
+function parseProviderFilter(raw: string | null): ProviderFilter {
+  return raw === 'maynilad' || raw === 'manila-water' ? raw : 'all';
+}
+
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
@@ -125,6 +130,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>(
+    parseProviderFilter(searchParams.get('provider')),
+  );
   const [isOffline, setIsOffline] = useState(false);
   const [userCity, setUserCity] = useState<string | null>(null);
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
@@ -198,15 +206,17 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     }
   }, [cityParam]);
 
-  const updateUrl = (newStatus: StatusFilter, newQuery: string) => {
+  const updateUrl = (newStatus: StatusFilter, newQuery: string, newProvider: ProviderFilter) => {
     if (typeof window === 'undefined') return;
 
     // Carry unrelated params (notably the `source=fixtures` dev/test switch) instead of dropping them.
     const params = new URLSearchParams(window.location.search);
     params.delete('status');
     params.delete('q');
+    params.delete('provider');
     if (newStatus !== 'all') params.set('status', newStatus);
     if (newQuery.trim()) params.set('q', newQuery.trim());
+    if (newProvider !== 'all') params.set('provider', newProvider);
 
     const queryString = params.toString();
     const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}`;
@@ -220,6 +230,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       const params = new URLSearchParams(window.location.search);
       setSearchQuery(params.get('q') || '');
       setStatusFilter(parseStatusFilter(params.get('status')));
+      setProviderFilter(parseProviderFilter(params.get('provider')));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -253,6 +264,10 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     const matchesStatus = statusFilter === 'all' || computeStatus(outage, now) === statusFilter;
 
     if (!matchesStatus) return false;
+
+    const matchesProvider = providerFilter === 'all' || outage.concessionaire === providerFilter;
+    if (!matchesProvider) return false;
+
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
@@ -328,7 +343,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
-                  Source: Maynilad · Updated:{' '}
+                  Source: Maynilad and Manila Water · Updated:{' '}
                   {now.toLocaleTimeString('en-PH', {
                     timeZone: 'Asia/Manila',
                     hour: '2-digit',
@@ -378,7 +393,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                updateUrl(statusFilter, e.target.value);
+                updateUrl(statusFilter, e.target.value, providerFilter);
               }}
             />
           </div>
@@ -389,7 +404,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className={pillClasses(statusFilter, 'all')}
               onClick={() => {
                 setStatusFilter('all');
-                updateUrl('all', searchQuery);
+                updateUrl('all', searchQuery, providerFilter);
               }}
             >
               All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-base">{total}</span>
@@ -399,7 +414,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className={pillClasses(statusFilter, 'active')}
               onClick={() => {
                 setStatusFilter('active');
-                updateUrl('active', searchQuery);
+                updateUrl('active', searchQuery, providerFilter);
               }}
             >
               <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
@@ -410,13 +425,46 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className={pillClasses(statusFilter, 'scheduled')}
               onClick={() => {
                 setStatusFilter('scheduled');
-                updateUrl('scheduled', searchQuery);
+                updateUrl('scheduled', searchQuery, providerFilter);
               }}
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
               <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-base">{scheduled}</span>
             </button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setProviderFilter('all');
+              updateUrl(statusFilter, searchQuery, 'all');
+            }}
+            className={providerFilter === 'all' ? 'bg-white text-zinc-900 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+          >
+            All Providers
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProviderFilter('maynilad');
+              updateUrl(statusFilter, searchQuery, 'maynilad');
+            }}
+            className={providerFilter === 'maynilad' ? 'bg-white text-blue-700 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+          >
+            Maynilad
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProviderFilter('manila-water');
+              updateUrl(statusFilter, searchQuery, 'manila-water');
+            }}
+            className={providerFilter === 'manila-water' ? 'bg-white text-cyan-700 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+          >
+            Manila Water
+          </button>
         </div>
       </div>
 
@@ -433,7 +481,8 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             onClick={() => {
               setSearchQuery('');
               setStatusFilter('all');
-              updateUrl('all', '');
+              setProviderFilter('all');
+              updateUrl('all', '', 'all');
             }}
             className="mt-4 text-blue-600 font-medium hover:underline"
           >
@@ -445,11 +494,11 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           {sortedCities.map((city) => (
             <li key={city}>
               <h2
-              id={`city-${encodeURIComponent(city)}`}
-              className="bg-white/90 inline-block px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-xl font-bold text-slate-800 mb-4 scroll-mt-24"
-            >
-              {city ?? 'Unknown'}
-            </h2>
+                id={`city-${encodeURIComponent(city)}`}
+                className="bg-white/90 inline-block px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold text-slate-800 mb-4 scroll-mt-24"
+              >
+                {city ?? 'Unknown'}
+              </h2>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {groupedByCity.get(city)?.map((outage) => {
                   const status = computeStatus(outage, now);
