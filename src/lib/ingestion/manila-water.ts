@@ -84,28 +84,25 @@ export function placesToBarangays(places: string[], city: string): Barangay[] {
   const province = deriveProvince(city);
 
   for (const place of places) {
-    const pieces = place
-      // "and all its lateral streets" describes streets, not another barangay. It has to go
-      // before the split on "and", or the phrase's own tail becomes a barangay called
-      // "all its lateral streets".
-      .replace(/\s*\band\b\s+all its lateral streets\b/i, '')
-      .replace(/\s*\ball its lateral streets\b/i, '')
-      // 1. Strip prefixes like "Portions of", "Parts of", "Brgy.", "Brgys."
-      .replace(/^(portions?|parts?)\s+of\s+/i, '')
-      .replace(/^brgys?\.?\s*/i, '')
-      // 2. Split on commas, semicolons, ampersands, and "and"
+    // 1. Remove all known noise phrases from the whole string. This has to happen before the
+    // split: "and all its lateral streets" describes streets, not a second barangay, and the
+    // split on "and" would otherwise hand back its tail as a barangay name.
+    const cleaned = place
+      .replace(/parts?\s+of\s+/gi, '')
+      .replace(/portions?\s+of\s+/gi, '')
+      .replace(/and\s+all\s+its\s+lateral\s+streets/gi, '')
+      .replace(/\(\s*all\s+its\s+lateral\s+streets\s*\)/gi, '')
+      // The comma/semicolon form carries no "and": "Brgy. Rizal, all its lateral streets".
+      .replace(/\ball\s+its\s+lateral\s+streets\b/gi, '')
+      .replace(/brgys?\.?\s*/gi, '')
+      // A stripped phrase can strand empty brackets; they are never a barangay name.
+      .replace(/\(\s*\)/g, '')
+      .trim();
+
+    // 2. Split on commas, semicolons, ampersands, and "and"
+    const pieces = cleaned
       .split(/[,;&]|\band\b/i)
-      .map((p) =>
-        p
-          // 3. Strip "all its lateral streets" in case a separator left it attached
-          .replace(/\s*\band\b\s+all its lateral streets\b/i, '')
-          .replace(/\s*\ball its lateral streets\b/i, '')
-          .trim()
-          .replace(/^brgys?\.?\s*/i, '')
-          // Removal can strand an empty pair of brackets; it is never a barangay name.
-          .replace(/\(\s*\)/g, '')
-          .trim(),
-      )
+      .map((p) => p.trim())
       .filter(Boolean);
 
     for (const piece of pieces) {
