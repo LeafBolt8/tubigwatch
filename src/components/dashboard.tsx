@@ -461,7 +461,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8 mb-8 flex flex-col gap-6">
         <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-          <div>              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">TubigWatch</h1>
+          <div>              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
             <p className="mt-2 text-2xl text-zinc-600 leading-relaxed">Metro Manila water service advisories</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -654,7 +654,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <li key={city}>
               <h2
                 id={`city-${encodeURIComponent(city)}`}
-                className="bg-slate-900 text-white inline-flex items-center gap-2 px-5 py-2.5 rounded-full shadow-sm text-xl md:text-2xl font-bold mb-6 scroll-mt-24"
+                className="bg-white text-slate-900 inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold mb-6 scroll-mt-24"
               >
                 {city ?? 'Unknown'}
                 <button
