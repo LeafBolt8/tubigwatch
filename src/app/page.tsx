@@ -2,6 +2,8 @@ import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
 
+import Link from 'next/link';
+
 import { Suspense } from 'react';
 
 import Dashboard from '@/components/dashboard';
@@ -95,8 +97,8 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
         <Dashboard outages={outages} sourceErrors={sourceErrors} sourceLabel={sourceLabel} />
       </Suspense>
 
-      <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-zinc-500">
-        <p>
+      <footer className="mt-10 border-t border-slate-200 pt-6 text-sm text-zinc-500 text-center">
+        <p className="mb-2">
           Unofficial aggregator. Always verify with{' '}
           <a
             href="https://www.mayniladwater.com.ph/service-advisories-2/"
@@ -117,6 +119,18 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
           </a>{' '}
           before relying on this data.
         </p>
+        <div className="flex justify-center gap-4">
+          <Link href="/privacy" className="hover:text-blue-600 transition-colors">
+            Privacy Policy
+          </Link>
+          <span>\u00b7</span>
+          <a
+            href="mailto:hello@tubigwatch.app"
+            className="hover:text-blue-600 transition-colors"
+          >
+            Send Feedback
+          </a>
+        </div>
       </footer>
     </main>
   );
