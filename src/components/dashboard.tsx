@@ -751,7 +751,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               </span>
                             </div>
                             {timeRange && (
-                              <span className="text-base font-medium text-zinc-600 text-right tabular-nums">{timeRange}</span>
+                              <span className="text-xl md:text-2xl font-semibold text-zinc-700 text-right tabular-nums">{timeRange}</span>
                             )}
                           </div>
 
