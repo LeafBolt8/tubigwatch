@@ -441,10 +441,36 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   }
 
   const sortedCities = Array.from(groupedByCity.keys()).sort((a, b) => {
-    // If one of them is the user's city, put it at the top
+    // 1. Geolocation Priority (Highest)
     if (userCity && a === userCity) return -1;
     if (userCity && b === userCity) return 1;
-    // Otherwise, alphabetical
+
+    // 2. Explicit City Pin
+    const aIsPinnedCity = favorites.some(f => f.type === 'city' && f.name === a);
+    const bIsPinnedCity = favorites.some(f => f.type === 'city' && f.name === b);
+    if (aIsPinnedCity && !bIsPinnedCity) return -1;
+    if (bIsPinnedCity && !aIsPinnedCity) return 1;
+
+    // 3. Contains a Pinned Barangay
+    const aHasPinnedBarangay = (groupedByCity.get(a) || []).some(o =>
+      o.affectedAreas.some(area =>
+        area.barangays.some(bg =>
+          favorites.some(f => f.type === 'barangay' && f.name === cleanBarangayName(bg.name))
+        )
+      )
+    );
+    const bHasPinnedBarangay = (groupedByCity.get(b) || []).some(o =>
+      o.affectedAreas.some(area =>
+        area.barangays.some(bg =>
+          favorites.some(f => f.type === 'barangay' && f.name === cleanBarangayName(bg.name))
+        )
+      )
+    );
+
+    if (aHasPinnedBarangay && !bHasPinnedBarangay) return -1;
+    if (bHasPinnedBarangay && !aHasPinnedBarangay) return 1;
+
+    // 4. Alphabetical Fallback
     return a.localeCompare(b);
   });
 
