@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Copy, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
 
+import EnablePush from '@/components/enable-push';
 import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
@@ -459,6 +460,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
               {nearMeEnabled && !isLocating && <X className="ml-1 w-4 h-4" />}
             </button>
+            <EnablePush />
             <span className="text-base text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
