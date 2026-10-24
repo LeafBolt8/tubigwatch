@@ -15,6 +15,12 @@ This file governs any coding agent (Freebuff, Claude Code, Cursor, Codex, Copilo
 > Mode for this repository: **during** (apply the filter while writing, and run the Delivery Gate before delivering). Announce `antislop active: during (session override).` once before the first edit when doing UI/copy work.
 > <!-- antislop:end -->
 
+## Skill sources
+
+Before starting any task, read the relevant skill definitions in `.ai-sources/` and apply the Superpowers, Taste Skill, UI UX Pro Max, and Matt Pocock engineering rules.
+
+UI work must comply with the Taste Skill and UI UX Pro Max anti-slop design systems.
+
 ---
 
 ## 1. Scope discipline
