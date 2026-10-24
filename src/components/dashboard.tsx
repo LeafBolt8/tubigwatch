@@ -681,7 +681,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                     e.stopPropagation();
                     toggleFavorite('city', city);
                   }}
-                  className="rounded-full text-slate-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  className="rounded text-slate-400 transition-colors hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   <Pin
                     className={`w-6 h-6 transition-colors ${
