@@ -57,5 +57,17 @@ test('map popup view details button has visible text', async ({ page }) => {
   expect(color).toBe('rgb(255, 255, 255)');
 });
 
+test('no horizontal overflow on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
 
+  await page.goto('/?source=fixtures');
+  let scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  let clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 
+  await page.goto('/map?source=fixtures');
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+  scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+});
