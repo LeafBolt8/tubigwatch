@@ -684,7 +684,11 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   className="rounded-full text-slate-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 >
                   <Pin
-                    className={`w-6 h-6 ${isFavorited('city', city) ? 'fill-white text-white' : ''}`}
+                    className={`w-6 h-6 transition-colors ${
+                      isFavorited('city', city)
+                        ? 'fill-blue-600 text-blue-600'
+                        : 'text-slate-400 hover:text-blue-600'
+                    }`}
                   />
                 </button>
               </h2>
