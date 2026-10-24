@@ -87,7 +87,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
       : `Source: Maynilad · AI Extraction · Updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-relaxed">
+    <main className="mx-4 my-8 md:mx-auto max-w-[90rem] px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-relaxed">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>

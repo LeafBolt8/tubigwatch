@@ -460,46 +460,57 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       )}
 
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8 mb-8 flex flex-col gap-6">
-        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-          <div>              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-            <p className="mt-2 text-2xl text-zinc-600 leading-relaxed">Metro Manila water service advisories</p>
+        <header className="flex flex-col justify-between gap-6 border-b border-slate-200 pb-6 xl:flex-row xl:items-start">
+          {/* LEFT SIDE: Branding and Metadata */}
+          <div className="flex flex-col">
+            <h1 className="text-4xl font-extrabold tracking-tight text-blue-700 md:text-5xl lg:text-6xl">
+              TubigWatch
+            </h1>
+            <p className="mt-2 text-xl text-zinc-600">Metro Manila water service advisories</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-zinc-500">
+              <span>
+                {sourceLabel ?? (
+                  <>
+                    Source: Maynilad and Manila Water · Updated:{' '}
+                    {now.toLocaleTimeString('en-PH', {
+                      timeZone: 'Asia/Manila',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </>
+                )}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
+
+          {/* RIGHT SIDE: Actions and Status */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               disabled={isLocating}
               title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
               onClick={toggleNearMe}
-              className={`inline-flex min-h-11 items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                 isLocating
-                  ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed'
+                  ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400'
                   : nearMeEnabled
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                    ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
+                    : 'border-zinc-200 bg-white text-zinc-600 shadow-sm hover:bg-zinc-50'
               }`}
             >
-              <MapPin className="w-5 h-5" />
+              <MapPin className="h-4 w-4" />
               {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
-              {nearMeEnabled && !isLocating && <X className="ml-1 w-4 h-4" />}
+              {nearMeEnabled && !isLocating && <X className="ml-1 h-4 w-4" />}
             </button>
-            <EnablePush />              <span className="text-lg text-zinc-500 font-medium hidden md:block">
-              {sourceLabel ?? (
-                <>
-                  Source: Maynilad and Manila Water · Updated:{' '}
-                  {now.toLocaleTimeString('en-PH', {
-                    timeZone: 'Asia/Manila',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true,
-                  })}
-                </>
-              )}
-            </span>
+
+            <EnablePush />
+
             <Link
               href="/map"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-xl font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <MapIcon className="w-5 h-5" /> View Map
+              <MapIcon className="h-4 w-4" /> View Map
             </Link>
           </div>
         </header>
@@ -523,106 +534,110 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           </p>
         )}
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="w-6 h-6 text-zinc-400" />
+        <div className="mt-6 flex flex-col gap-4">
+          {/* Row 1: Search and status filters */}
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="relative flex-1">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                <Search className="h-6 w-6 text-zinc-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full rounded-xl border border-transparent bg-slate-50 py-3 pl-12 pr-4 text-lg leading-6 placeholder-zinc-500 transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Search by city, barangay, or reason..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  updateUrl(statusFilter, e.target.value, providerFilter);
+                }}
+              />
             </div>
-            <input
-              type="text"
-              className="block w-full pl-12 pr-4 py-3 text-xl border border-transparent rounded-xl leading-6 bg-slate-50 placeholder-zinc-500 placeholder:text-base focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                updateUrl(statusFilter, e.target.value, providerFilter);
-              }}
-            />
+
+            <div className="grid w-full grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1 md:inline-flex md:w-auto md:flex-wrap md:items-center">
+              <button
+                type="button"
+                // Pinned overrides the status pills; without this, All and Pinned would both look active.
+                className={pillClasses(showOnlyFavorites ? 'active' : statusFilter, 'all')}
+                onClick={() => {
+                  setStatusFilter('all');
+                  setShowOnlyFavorites(false);
+                  updateUrl('all', searchQuery, providerFilter);
+                }}
+              >
+                All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-base">{total}</span>
+              </button>
+              <button
+                type="button"
+                className={pillClasses(statusFilter, 'active')}
+                onClick={() => {
+                  setStatusFilter('active');
+                  setShowOnlyFavorites(false);
+                  updateUrl('active', searchQuery, providerFilter);
+                }}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
+                <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-base">{active}</span>
+              </button>
+              <button
+                type="button"
+                className={pillClasses(statusFilter, 'scheduled')}
+                onClick={() => {
+                  setStatusFilter('scheduled');
+                  setShowOnlyFavorites(false);
+                  updateUrl('scheduled', searchQuery, providerFilter);
+                }}
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
+                <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-base">{scheduled}</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={showOnlyFavorites}
+                onClick={() => {
+                  setStatusFilter('all');
+                  updateUrl('all', searchQuery, providerFilter);
+                  setShowOnlyFavorites((value) => !value);
+                }}
+                className={pillClasses(showOnlyFavorites ? 'active' : 'all', 'active')}
+              >
+                <Pin className="w-4 h-4 mr-1.5" /> Pinned
+              </button>
+            </div>
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-1 p-1 bg-slate-200/60 rounded-lg md:inline-flex md:w-auto md:flex-wrap md:items-center">
+          {/* Row 2: Provider filters */}
+          <div className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-slate-200/60 p-1 sm:inline-flex sm:w-auto sm:flex-row sm:items-center">
             <button
               type="button"
-              // Pinned overrides the status pills; without this, All and Pinned would both look active.
-              className={pillClasses(showOnlyFavorites ? 'active' : statusFilter, 'all')}
               onClick={() => {
-                setStatusFilter('all');
-                setShowOnlyFavorites(false);
-                updateUrl('all', searchQuery, providerFilter);
+                setProviderFilter('all');
+                updateUrl(statusFilter, searchQuery, 'all');
               }}
+              className={`${providerPillClasses(providerFilter === 'all', 'text-zinc-900')} col-span-2 sm:col-span-1`}
             >
-              All <span className="ml-1.5 px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 text-base">{total}</span>
+              All Providers
             </button>
             <button
               type="button"
-              className={pillClasses(statusFilter, 'active')}
               onClick={() => {
-                setStatusFilter('active');
-                setShowOnlyFavorites(false);
-                updateUrl('active', searchQuery, providerFilter);
+                setProviderFilter('maynilad');
+                updateUrl(statusFilter, searchQuery, 'maynilad');
               }}
+              className={providerPillClasses(providerFilter === 'maynilad', 'text-blue-700')}
             >
-              <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5 inline-block"></span> Active{' '}
-              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-base">{active}</span>
+              Maynilad
             </button>
             <button
               type="button"
-              className={pillClasses(statusFilter, 'scheduled')}
               onClick={() => {
-                setStatusFilter('scheduled');
-                setShowOnlyFavorites(false);
-                updateUrl('scheduled', searchQuery, providerFilter);
+                setProviderFilter('manila-water');
+                updateUrl(statusFilter, searchQuery, 'manila-water');
               }}
+              className={providerPillClasses(providerFilter === 'manila-water', 'text-cyan-700')}
             >
-              <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
-              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-base">{scheduled}</span>
-            </button>
-            <button
-              type="button"
-              aria-pressed={showOnlyFavorites}
-              onClick={() => {
-                setStatusFilter('all');
-                updateUrl('all', searchQuery, providerFilter);
-                setShowOnlyFavorites((value) => !value);
-              }}
-              className={pillClasses(showOnlyFavorites ? 'active' : 'all', 'active')}
-            >
-              <Pin className="w-4 h-4 mr-1.5" /> Pinned
+              Manila Water
             </button>
           </div>
-        </div>
-
-        <div className="grid w-full grid-cols-2 gap-1 p-1 bg-slate-200/60 rounded-lg mt-2 sm:inline-flex sm:w-auto sm:flex-row sm:items-center sm:self-start">
-          <button
-            type="button"
-            onClick={() => {
-              setProviderFilter('all');
-              updateUrl(statusFilter, searchQuery, 'all');
-            }}
-            className={`${providerPillClasses(providerFilter === 'all', 'text-zinc-900')} col-span-2 sm:col-span-1`}
-          >
-            All Providers
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setProviderFilter('maynilad');
-              updateUrl(statusFilter, searchQuery, 'maynilad');
-            }}
-            className={providerPillClasses(providerFilter === 'maynilad', 'text-blue-700')}
-          >
-            Maynilad
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setProviderFilter('manila-water');
-              updateUrl(statusFilter, searchQuery, 'manila-water');
-            }}
-            className={providerPillClasses(providerFilter === 'manila-water', 'text-cyan-700')}
-          >
-            Manila Water
-          </button>
         </div>
       </div>
 
