@@ -6,10 +6,20 @@ import { timingSafeEqual } from 'crypto';
 
 import { OutageSchema } from '@/lib/schemas/outage';
 import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
   token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '',
+});
+
+// Five attempts per minute per address is enough for an operator who mistypes a password and
+// too few for a scripted brute-force run. GET shares the bucket because reading overrides is
+// part of the same admin surface.
+const limiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, '1 m'),
+  prefix: 'tubigwatch:admin',
 });
 
 function redactSecret(raw: object): object {
@@ -26,6 +36,27 @@ function redactSecret(raw: object): object {
 
 function unauthorized(body: { error: string }) {
   return NextResponse.json(body, { status: 401 });
+}
+
+/**
+ * The first X-Forwarded-For entry is the client address Vercel prepends. Keeping only that entry
+ * stops a caller from getting a fresh bucket by appending extra hops; x-real-ip covers proxies
+ * that set only that header.
+ */
+function clientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const first = forwarded?.split(',')[0]?.trim();
+  return first || request.headers.get('x-real-ip') || 'unknown';
+}
+
+async function rateLimitError(request: NextRequest): Promise<NextResponse | null> {
+  const { success } = await limiter.limit(clientIp(request));
+  if (success) return null;
+
+  return NextResponse.json(
+    { error: 'Too many requests. Please try again later.' },
+    { status: 429, headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 /**
@@ -79,6 +110,9 @@ function ok(body: { ok: true; servedAt: string }) {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimited = await rateLimitError(request);
+  if (rateLimited) return rateLimited;
+
   const authError = adminAuthError(request);
   if (authError) return authError;
 
@@ -126,6 +160,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const rateLimited = await rateLimitError(request);
+  if (rateLimited) return rateLimited;
+
   const authError = adminAuthError(request);
   if (authError) return authError;
 

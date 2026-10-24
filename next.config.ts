@@ -28,6 +28,9 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // geolocation=(self) is required: the dashboard asks for the visitor's city to
           // prioritize their outage cards, and an empty allowlist blocks the API outright.

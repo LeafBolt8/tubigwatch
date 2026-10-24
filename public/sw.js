@@ -49,6 +49,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Admin pages and their API must always reach the network: a cached override list would be
+  // stale, and an authenticated GET must never be stored in the shared Cache API.
+  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/api/admin')) return;
+
   if (request.mode === 'navigate' || url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request));
     return;
