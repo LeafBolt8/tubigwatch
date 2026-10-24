@@ -190,8 +190,17 @@ function subscribeFavorites(onStoreChange: () => void): () => void {
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
-    ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium'
-    : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all';
+    ? 'inline-flex items-center justify-center bg-white text-zinc-900 shadow-sm rounded-lg px-2 sm:px-6 py-2.5 text-base sm:text-lg font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
+    : 'inline-flex items-center justify-center text-zinc-600 hover:text-zinc-900 rounded-lg px-2 sm:px-6 py-2.5 text-base sm:text-lg font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
+}
+
+function providerPillClasses(selected: boolean, selectedText: string): string {
+  const base =
+    'inline-flex w-full sm:w-auto min-h-12 items-center justify-center rounded-lg px-2 sm:px-6 py-2.5 text-base sm:text-lg font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
+
+  return selected
+    ? `${base} bg-white ${selectedText} shadow-sm`
+    : `${base} text-zinc-600 hover:text-zinc-900 transition-colors`;
 }
 
 type DashboardProps = {
@@ -450,11 +459,10 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         </div>
       )}
 
-      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col gap-6">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">TubigWatch</h1>
-            <p className="mt-1 text-xl text-zinc-600">Metro Manila water service advisories</p>
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8 mb-8 flex flex-col gap-6">
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+          <div>              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">TubigWatch</h1>
+            <p className="mt-2 text-2xl text-zinc-600 leading-relaxed">Metro Manila water service advisories</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <button
@@ -462,7 +470,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               disabled={isLocating}
               title={nearMeEnabled ? 'Disable Near Me' : 'Enable Near Me'}
               onClick={toggleNearMe}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-colors border ${
+              className={`inline-flex min-h-11 items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                 isLocating
                   ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed'
                   : nearMeEnabled
@@ -474,8 +482,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               {isLocating ? 'Locating...' : nearMeEnabled ? `Prioritizing ${userCity ?? 'Near Me'}` : 'Near Me'}
               {nearMeEnabled && !isLocating && <X className="ml-1 w-4 h-4" />}
             </button>
-            <EnablePush />
-            <span className="text-base text-zinc-500 font-medium hidden md:block">
+            <EnablePush />              <span className="text-lg text-zinc-500 font-medium hidden md:block">
               {sourceLabel ?? (
                 <>
                   Source: Maynilad and Manila Water · Updated:{' '}
@@ -490,7 +497,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             </span>
             <Link
               href="/map"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-xl font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <MapIcon className="w-5 h-5" /> View Map
             </Link>
@@ -516,14 +523,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           </p>
         )}
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="w-6 h-6 text-zinc-400" />
             </div>
             <input
               type="text"
-              className="block w-full pl-12 pr-4 py-3 text-xl border border-zinc-300 rounded-xl leading-6 bg-white placeholder-zinc-500 placeholder:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="block w-full pl-12 pr-4 py-3 text-xl border border-transparent rounded-xl leading-6 bg-slate-50 placeholder-zinc-500 placeholder:text-base focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Search by city, barangay, or reason (e.g., 'Quezon City' or 'Baesa')"
               value={searchQuery}
               onChange={(e) => {
@@ -533,7 +540,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             />
           </div>
 
-          <div className="flex w-full md:inline-flex md:w-auto flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg">
+          <div className="grid w-full grid-cols-2 gap-1 p-1 bg-slate-200/60 rounded-lg md:inline-flex md:w-auto md:flex-wrap md:items-center">
             <button
               type="button"
               // Pinned overrides the status pills; without this, All and Pinned would both look active.
@@ -585,14 +592,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           </div>
         </div>
 
-        <div className="inline-flex flex-wrap md:flex-nowrap md:self-start gap-1 p-1 bg-slate-200/60 rounded-lg mt-2">
+        <div className="grid w-full grid-cols-2 gap-1 p-1 bg-slate-200/60 rounded-lg mt-2 sm:inline-flex sm:w-auto sm:flex-row sm:items-center sm:self-start">
           <button
             type="button"
             onClick={() => {
               setProviderFilter('all');
               updateUrl(statusFilter, searchQuery, 'all');
             }}
-            className={providerFilter === 'all' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
+            className={`${providerPillClasses(providerFilter === 'all', 'text-zinc-900')} col-span-2 sm:col-span-1`}
           >
             All Providers
           </button>
@@ -602,7 +609,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setProviderFilter('maynilad');
               updateUrl(statusFilter, searchQuery, 'maynilad');
             }}
-            className={providerFilter === 'maynilad' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-blue-700 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
+            className={providerPillClasses(providerFilter === 'maynilad', 'text-blue-700')}
           >
             Maynilad
           </button>
@@ -612,7 +619,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setProviderFilter('manila-water');
               updateUrl(statusFilter, searchQuery, 'manila-water');
             }}
-            className={providerFilter === 'manila-water' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-cyan-700 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
+            className={providerPillClasses(providerFilter === 'manila-water', 'text-cyan-700')}
           >
             Manila Water
           </button>
@@ -620,13 +627,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       </div>
 
       {filteredOutages.length === 0 && activeAndUpcoming.length === 0 ? (
-        <div className="text-center py-16 bg-white/95 rounded-2xl border border-slate-200 mt-6 shadow-sm">
+        <div className="text-center py-16 px-8 bg-white rounded-2xl border border-slate-200 mt-6 shadow-sm">
           <p className="text-zinc-900 text-2xl font-bold">All clear!</p>
-          <p className="text-zinc-600 mt-2 text-lg">There are currently no active or scheduled water outages.</p>
+          <p className="text-zinc-600 mt-2 text-lg leading-relaxed">There are currently no active or scheduled water outages.</p>
         </div>
       ) : filteredOutages.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-zinc-200 mt-6">
-          <p className="text-zinc-500 text-lg">No outages found matching your criteria.</p>
+        <div className="text-center py-12 px-8 bg-white rounded-2xl border border-slate-200 mt-6 shadow-sm">
+          <p className="text-zinc-500 text-lg leading-relaxed">No outages found matching your criteria.</p>
           <button
             type="button"
             onClick={() => {
@@ -636,18 +643,18 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setShowOnlyFavorites(false);
               updateUrl('all', '', 'all');
             }}
-            className="mt-4 text-blue-600 font-medium hover:underline"
+            className="mt-4 rounded-lg text-blue-600 font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             Clear filters
           </button>
         </div>
       ) : (
-        <ul className="space-y-12">
+        <ul className="space-y-16">
           {sortedCities.map((city) => (
             <li key={city}>
               <h2
                 id={`city-${encodeURIComponent(city)}`}
-                className="bg-white/90 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold text-slate-800 mb-4 scroll-mt-24"
+                className="bg-slate-900 text-white inline-flex items-center gap-2 px-5 py-2.5 rounded-full shadow-sm text-xl md:text-2xl font-bold mb-6 scroll-mt-24"
               >
                 {city ?? 'Unknown'}
                 <button
@@ -659,14 +666,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                     e.stopPropagation();
                     toggleFavorite('city', city);
                   }}
-                  className="text-zinc-400 hover:text-blue-600 transition-colors"
+                  className="rounded-full text-slate-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 >
                   <Pin
-                    className={`w-6 h-6 ${isFavorited('city', city) ? 'fill-blue-600 text-blue-600' : ''}`}
+                    className={`w-6 h-6 ${isFavorited('city', city) ? 'fill-white text-white' : ''}`}
                   />
                 </button>
               </h2>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {groupedByCity.get(city)?.map((outage) => {
                   const status = computeStatus(outage, now);
 
@@ -718,7 +725,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   return (
                     <li key={outage.id} className="flex flex-col">
                       <article
-                        className={`${favorite ? 'ring-2 ring-blue-400 ring-offset-2' : ''} h-full bg-white/95 rounded-xl shadow-md hover:shadow-lg border border-slate-200 overflow-hidden transition-all border-l-4 ${
+                        className={`${favorite ? 'ring-2 ring-blue-400 ring-offset-2' : ''} h-full bg-white rounded-2xl shadow-sm hover:shadow-md border border-slate-200 transition-all duration-200 overflow-hidden border-l-[6px] ${
                           status === 'active'
                             ? 'border-l-red-500'
                             : status === 'scheduled'
@@ -744,12 +751,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               </span>
                             </div>
                             {timeRange && (
-                              <span className="text-lg font-medium text-zinc-600 text-right">{timeRange}</span>
+                              <span className="text-base font-medium text-zinc-600 text-right tabular-nums">{timeRange}</span>
                             )}
                           </div>
 
                           {outage.reason && (
-                            <p className="text-2xl font-bold text-zinc-900 mt-3">{outage.reason}</p>
+                            <p className="text-xl font-bold text-zinc-900 mt-3 leading-relaxed">{outage.reason}</p>
                           )}
 
                           {allBarangays.length > 0 && (
@@ -772,7 +779,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                         e.stopPropagation();
                                         toggleFavorite('barangay', key);
                                       }}
-                                      className="text-zinc-400 hover:text-blue-600 transition-colors"
+                                      className="rounded-lg text-zinc-400 hover:text-blue-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                     >
                                       <Pin
                                         className={`w-4 h-4 ${pinned ? 'fill-blue-600 text-blue-600' : ''}`}
@@ -806,7 +813,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                   navigator.clipboard.writeText(text);
                                   alert('Copied to clipboard!');
                                 }}
-                                className="text-zinc-500 hover:text-zinc-900 transition-colors"
+                                className="rounded-lg text-zinc-500 hover:text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                               >
                                 <Copy className="w-5 h-5" />
                               </button>
@@ -814,7 +821,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                                 type="button"
                                 aria-label="Share outage details"
                                 onClick={handleShare}
-                                className="text-zinc-500 hover:text-blue-600 transition-colors"
+                                className="rounded-lg text-zinc-500 hover:text-blue-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                               >
                                 <Share2 className="w-5 h-5" />
                               </button>

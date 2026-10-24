@@ -87,32 +87,32 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
       : `Source: Maynilad · AI Extraction · Updated: ${now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false })}`;
 
   return (
-    <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
-      <div className="bg-white/95 rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <main className="mx-4 my-8 md:mx-auto max-w-7xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-relaxed">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
-            <p className="mt-1 text-xl text-zinc-600">Metro Manila water outages by city</p>
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-blue-700">Outage Map</h1>
+            <p className="mt-2 text-xl text-zinc-600 leading-relaxed">Metro Manila water outages by city</p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-zinc-500 font-medium hidden md:block">{sourceLine}</span>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <MapIcon className="w-5 h-5" /> Back to Dashboard
             </Link>
           </div>
         </div>
 
-        <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-medium text-zinc-600">
+        <p className="mt-4 border-t border-slate-100 pt-4 text-sm font-medium text-zinc-600 leading-relaxed">
           {active} active · {scheduled} scheduled · {visibleOutages.length} total
           {statusUnknown ? ' · some status unknown' : ''}
         </p>
       </div>
 
       {freshness !== 'fresh' && (
-        <p className="mb-6 rounded-xl border border-slate-300 bg-white/95 px-4 py-3 text-zinc-900">
+        <p className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-zinc-900 leading-relaxed">
           Source unavailable: {freshness === 'stale' ? 'stale' : freshness === 'unavailable' ? 'unavailable' : sourceErrors.join('; ')}
         </p>
       )}

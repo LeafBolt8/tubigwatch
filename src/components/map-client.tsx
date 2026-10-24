@@ -47,14 +47,14 @@ type FilterGroupProps<T extends string> = {
 
 function FilterGroup<T extends string>({ label, value, options, onChange }: FilterGroupProps<T>) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <span className="text-sm font-semibold uppercase tracking-wide text-zinc-500 sm:w-20">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <span className="text-sm font-semibold uppercase tracking-wide text-zinc-500 sm:w-24">
         {label}
       </span>
       <div
         role="group"
         aria-label={label}
-        className="inline-flex flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg"
+        className="inline-flex flex-wrap gap-1 p-1 bg-slate-100 rounded-xl"
       >
         {options.map((option) => {
           const selected = option.value === value;
@@ -66,8 +66,8 @@ function FilterGroup<T extends string>({ label, value, options, onChange }: Filt
               onClick={() => onChange(option.value)}
               className={
                 selected
-                  ? 'inline-flex items-center justify-center bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-5 py-2 text-base font-medium'
-                  : 'inline-flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-5 py-2 text-base font-medium transition-all'
+                  ? 'inline-flex min-h-11 items-center justify-center bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-5 py-2 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
+                  : 'inline-flex min-h-11 items-center justify-center text-zinc-600 hover:text-zinc-900 rounded-lg px-4 sm:px-5 py-2 text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
               }
             >
               {option.label}
@@ -131,7 +131,7 @@ export default function MapClient({ outages }: MapClientProps) {
 
   return (
     <div>
-      <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
+      <div className="mb-8 space-y-4 rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-sm md:shadow-md transition-shadow">
         <FilterGroup
           label="Status"
           value={statusFilter}
@@ -165,7 +165,7 @@ export default function MapClient({ outages }: MapClientProps) {
         />
       </Suspense>
 
-      <div className="flex flex-wrap gap-4 mt-4 text-sm text-zinc-600 justify-center">
+      <div className="mx-auto mt-6 flex w-fit max-w-full flex-wrap justify-center gap-x-4 gap-y-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm text-zinc-600 shadow-sm sm:gap-x-6 sm:px-6 sm:py-4 sm:text-base">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-500 rounded-full" aria-hidden="true"></div> Active outage
         </div>

@@ -81,7 +81,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
       <MapContainer
         center={mapCenter}
         zoom={11}
-        className="h-[70vh] min-h-[600px] w-full rounded-xl border border-zinc-200 shadow-sm z-0"
+        className="h-[70vh] min-h-[600px] w-full rounded-2xl border border-slate-200 shadow-sm z-0"
       >
         <MapRecenter center={mapCenter} />
         <TileLayer
