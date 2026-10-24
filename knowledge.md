@@ -2,10 +2,12 @@ Cold-cache first request to `/` (or `/api/outages`) can take ~143s while Maynila
 
 ## Data
 
-- Primary source: Maynilad service advisories via Google Gemini API (`gemini-3.8-flash`) with URL Context; extracted into strict Zod schemas (`OutageSchema`, `AffectedAreaSchema`, `BarangaySchema`, etc.) in `src/lib/schemas`.
-- Manila Water is paused for v1 (Cloudflare bot protection on their advisory pages); its extraction returns a `manila-water:` source error and no outage rows.
-- The Gemini prompt explicitly instructs extraction from both the Emergency and Scheduled interruption tables and normalization of messy barangay lists/ranges.
-- Validated outages are cached via Next.js `unstable_cache` (24h Gemini path, 15m native Maynilad path in `src/lib/cache/outages.ts`).
+- **Maynilad:** Native WP REST API scraper (`src/lib/ingestion/maynilad.ts`) that walks paginated HTML-table-in-JSON responses. There is no Gemini fallback in the live path: `src/lib/ingestion/gemini.ts` is not imported by the cache or the reader.
+- **Manila Water:** Native REST API scraper (`src/lib/ingestion/manila-water.ts`) that hits their unadvertised AWS API. Parses compound barangay strings and strips noise phrases like "Parts of" and "all its lateral streets".
+- **Ingestion runner:** A scheduled **GitHub Action** (`.github/workflows/scrape.yml`, cron `0 */6 * * *` plus manual dispatch) merges both sources, normalizes the data (389-entry barangay dictionary + city unification), and saves the snapshot to **Upstash Redis** under `last-known-good-outages`. A failed source contributes no rows, and an empty merge exits non-zero instead of overwriting the last good snapshot.
+- **Reader layer:** `src/lib/cache/outages.ts` reads from Redis, merges manual admin overrides, warns when data is >36 hours old, and serves the result to the dashboard and `/api/outages?source=gemini`.
+- **Manual overrides:** Stored in Upstash Redis under `manual-outages` as `{ servedAt, rows }`. Merged on top of the scraped snapshot via `dedupById`.
+- **Fallback:** An empty snapshot reports "No data available yet" (any manual rows are still returned); an unreachable Redis reports "Database connection failed." Neither ever renders as "no outages".
 
 ## Superpowers — structured development methodology (`.ai-sources/superpowers/`)
 
