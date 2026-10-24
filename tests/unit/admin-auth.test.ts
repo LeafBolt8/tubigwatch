@@ -122,4 +122,14 @@ describe('admin route auth', () => {
 
     expect(limit).toHaveBeenCalledWith('203.0.113.9');
   });
+
+  test('fails open when the limiter throws, but still checks the password', async () => {
+    limit.mockRejectedValueOnce(new Error('redis unavailable'));
+
+    const wrongPassword = await POST(request('POST', 'wrong'));
+    expect(wrongPassword.status).toBe(401);
+
+    const accepted = await GET(request('GET', encodeURIComponent('correct horse')));
+    expect(accepted.status).toBe(200);
+  });
 });

@@ -50,7 +50,16 @@ function clientIp(request: NextRequest): string {
 }
 
 async function rateLimitError(request: NextRequest): Promise<NextResponse | null> {
-  const { success } = await limiter.limit(clientIp(request));
+  let success = true;
+
+  try {
+    const limited = await limiter.limit(clientIp(request));
+    success = limited.success;
+  } catch (error) {
+    // Redis being down must not lock an operator out of the panel; the password check still runs.
+    console.warn('Rate limiter Redis unavailable, failing open:', error);
+  }
+
   if (success) return null;
 
   return NextResponse.json(

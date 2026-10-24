@@ -10,7 +10,7 @@ test('home page renders the TubigWatch heading', async ({ page }) => {
 test('fixtures mode renders the outage summary and at least one card', async ({ page }) => {
   await page.goto('/?source=fixtures');
   await page.waitForSelector('role=article', { state: 'attached' });
-  await expect(page.getByText(/\d+ active/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /^All\s+\d+$/ })).toBeVisible();
   await expect(page.getByRole('article').first()).toBeVisible();
 });
 
