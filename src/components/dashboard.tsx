@@ -11,6 +11,7 @@ import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
+import { syncPushSubscription } from '@/lib/utils/push-sync';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
@@ -333,6 +334,19 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       window.removeEventListener('online', handleOnline);
     };
   }, []);
+
+  useEffect(() => {
+    // Skip the initial mount so enabling notifications and pinning in quick succession does not
+    // immediately re-post the same record. Later pin changes refresh the stored favorites.
+    const syncedBefore = sessionStorage.getItem('favorites-synced');
+    if (syncedBefore) {
+      syncPushSubscription().catch((error) => {
+        console.warn('Could not sync push favorites', error);
+      });
+    } else {
+      sessionStorage.setItem('favorites-synced', 'true');
+    }
+  }, [favorites]);
 
   const isFavorited = (type: FavoriteType, name: string) =>
     favorites.some((favorite) => favorite.type === type && favorite.name === name);
