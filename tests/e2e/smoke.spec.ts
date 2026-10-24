@@ -43,5 +43,19 @@ test('city pin button is focusable and has a visible focus ring', async ({ page 
   expect(focusRing.boxShadow).not.toBe('none');
 });
 
+test('map popup view details button has visible text', async ({ page }) => {
+  await page.goto('/map?source=fixtures');
+
+  const firstMarker = page.locator('.leaflet-marker-icon').first();
+  await expect(firstMarker).toBeVisible();
+  await firstMarker.click();
+
+  const viewDetailsLink = page.getByRole('link', { name: 'View Details' });
+  await expect(viewDetailsLink).toBeVisible();
+
+  const color = await viewDetailsLink.evaluate((el) => window.getComputedStyle(el).color);
+  expect(color).toBe('rgb(255, 255, 255)');
+});
+
 
 
