@@ -441,7 +441,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setProviderFilter('all');
               updateUrl(statusFilter, searchQuery, 'all');
             }}
-            className={providerFilter === 'all' ? 'bg-white text-zinc-900 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+            className={providerFilter === 'all' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-zinc-900 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
           >
             All Providers
           </button>
@@ -451,7 +451,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setProviderFilter('maynilad');
               updateUrl(statusFilter, searchQuery, 'maynilad');
             }}
-            className={providerFilter === 'maynilad' ? 'bg-white text-blue-700 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+            className={providerFilter === 'maynilad' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-blue-700 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
           >
             Maynilad
           </button>
@@ -461,7 +461,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setProviderFilter('manila-water');
               updateUrl(statusFilter, searchQuery, 'manila-water');
             }}
-            className={providerFilter === 'manila-water' ? 'bg-white text-cyan-700 shadow-sm rounded-lg px-4 py-2 text-sm font-medium' : 'text-zinc-600 hover:text-zinc-900 px-4 py-2 text-sm font-medium'}
+            className={providerFilter === 'manila-water' ? 'inline-flex items-center justify-center flex-1 md:flex-none bg-white text-cyan-700 shadow-sm rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all' : 'inline-flex items-center justify-center flex-1 md:flex-none text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50 rounded-lg px-4 sm:px-6 py-2.5 text-lg font-medium transition-all'}
           >
             Manila Water
           </button>
