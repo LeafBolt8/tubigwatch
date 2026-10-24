@@ -70,6 +70,15 @@ export default function EnablePush() {
     'serviceWorker' in navigator &&
     'PushManager' in window;
 
+  // iOS exposes Push only to apps launched from the home screen, so an installed-but-unsupported
+  // case would be a real regression; a Safari tab is the case worth guiding.
+  const isIOS =
+    typeof window !== 'undefined' &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !('MSStream' in window);
+  const isStandalone =
+    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+
   const handleEnable = async () => {
     if (status === 'subscribing') return;
     if (!VAPID_PUBLIC_KEY) {
@@ -134,7 +143,25 @@ export default function EnablePush() {
     }
   };
 
-  if (!mounted || !supported || permission === 'granted') return null;
+  if (!mounted) return null;
+
+  if (!supported) {
+    if (isIOS && !isStandalone) {
+      return (
+        <div
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-amber-50 text-amber-800 border border-amber-200 shadow-sm"
+          title="Tap Share, then Add to Home Screen to enable alerts"
+        >
+          <Bell className="w-4 h-4" />
+          Add to Home Screen for alerts
+        </div>
+      );
+    }
+
+    return null;
+  }
+
+  if (permission === 'granted') return null;
 
   return (
     <div className="flex flex-col items-end gap-1">
