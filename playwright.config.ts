@@ -2,8 +2,11 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The HTML report bundles the retained traces, and it is what CI uploads on failure.
+  reporter: [['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:3000',
+    trace: 'retain-on-failure',
   },
   webServer: {
     command: 'npm run start',
