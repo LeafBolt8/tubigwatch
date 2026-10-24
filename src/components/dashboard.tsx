@@ -2,13 +2,14 @@
 
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Map as MapIcon, MapPin, Search, Share2, X } from 'lucide-react';
+import { Copy, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
 
 import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
+import { cleanBarangayName } from '@/lib/utils/barangay-name';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
@@ -111,6 +112,70 @@ function parseProviderFilter(raw: string | null): ProviderFilter {
   return raw === 'maynilad' || raw === 'manila-water' ? raw : 'all';
 }
 
+/**
+ * Splits a barangay label into the pieces the card renders, then cleans each piece.
+ *
+ * Favorites are keyed on the cleaned piece rather than the raw label, so "Sta. Ana" pinned on
+ * one row still matches "Sta Ana" on another, and a compound label pins as separate barangays.
+ */
+function favoriteKeysForName(name: string): string[] {
+  return name
+    .split(/[,;]|\band\b/i)
+    .map((piece) => cleanBarangayName(piece))
+    .filter(Boolean);
+}
+
+function outageFavoriteKeys(outage: Outage): string[] {
+  return outage.affectedAreas.flatMap((area) =>
+    area.barangays.flatMap((barangay) => favoriteKeysForName(barangay.name)),
+  );
+}
+
+const FAVORITES_KEY = 'tubigwatch_favorites';
+const EMPTY_FAVORITES: string[] = [];
+
+/**
+ * Favorites live in localStorage, not React state: that keeps them across reloads without a
+ * setState-in-effect (which the React compiler lint rejects) and without a hydration mismatch.
+ * The raw string is cached so repeated snapshots return the same array reference.
+ */
+let favoritesRawCache: string | null = null;
+let favoritesCache: string[] = EMPTY_FAVORITES;
+
+function parseFavorites(raw: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string')
+      : EMPTY_FAVORITES;
+  } catch {
+    return EMPTY_FAVORITES;
+  }
+}
+
+function getFavoritesSnapshot(): string[] {
+  const raw = window.localStorage.getItem(FAVORITES_KEY) ?? '';
+  if (raw !== favoritesRawCache) {
+    favoritesRawCache = raw;
+    favoritesCache = parseFavorites(raw);
+  }
+  return favoritesCache;
+}
+
+function getServerFavoritesSnapshot(): string[] {
+  return EMPTY_FAVORITES;
+}
+
+function subscribeFavorites(onStoreChange: () => void): () => void {
+  // 'storage' covers other tabs; the custom event covers this one, where storage does not fire.
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener('tubigwatch-favorites', onStoreChange);
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener('tubigwatch-favorites', onStoreChange);
+  };
+}
+
 function pillClasses(status: StatusFilter, value: StatusFilter): string {
   const active = status === value;
   return active
@@ -133,6 +198,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>(
     parseProviderFilter(searchParams.get('provider')),
   );
+  const favorites = useSyncExternalStore(
+    subscribeFavorites,
+    getFavoritesSnapshot,
+    getServerFavoritesSnapshot,
+  );
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [userCity, setUserCity] = useState<string | null>(null);
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
@@ -253,6 +324,21 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     };
   }, []);
 
+  const toggleFavorite = (barangayKey: string) => {
+    const next = favorites.includes(barangayKey)
+      ? favorites.filter((key) => key !== barangayKey)
+      : [...favorites, barangayKey];
+    try {
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+    } catch {
+      // Storage can reject writes in private mode; the pin still works for this session.
+    }
+    window.dispatchEvent(new Event('tubigwatch-favorites'));
+  };
+
+  const outageHasFavorite = (outage: Outage) =>
+    outageFavoriteKeys(outage).some((key) => favorites.includes(key));
+
   const mayniladError = sourceErrors.find((e) => e.startsWith('maynilad:'));
 
   const activeAndUpcoming = outages.filter((outage) => {
@@ -261,6 +347,8 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   });
 
   const filteredOutages = activeAndUpcoming.filter((outage) => {
+    if (showOnlyFavorites && !outageHasFavorite(outage)) return false;
+
     const matchesStatus = statusFilter === 'all' || computeStatus(outage, now) === statusFilter;
 
     if (!matchesStatus) return false;
@@ -401,9 +489,11 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           <div className="flex w-full md:inline-flex md:w-auto flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg">
             <button
               type="button"
-              className={pillClasses(statusFilter, 'all')}
+              // Pinned overrides the status pills; without this, All and Pinned would both look active.
+              className={pillClasses(showOnlyFavorites ? 'active' : statusFilter, 'all')}
               onClick={() => {
                 setStatusFilter('all');
+                setShowOnlyFavorites(false);
                 updateUrl('all', searchQuery, providerFilter);
               }}
             >
@@ -414,6 +504,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className={pillClasses(statusFilter, 'active')}
               onClick={() => {
                 setStatusFilter('active');
+                setShowOnlyFavorites(false);
                 updateUrl('active', searchQuery, providerFilter);
               }}
             >
@@ -425,16 +516,29 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               className={pillClasses(statusFilter, 'scheduled')}
               onClick={() => {
                 setStatusFilter('scheduled');
+                setShowOnlyFavorites(false);
                 updateUrl('scheduled', searchQuery, providerFilter);
               }}
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5 inline-block"></span> Scheduled{' '}
               <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-base">{scheduled}</span>
             </button>
+            <button
+              type="button"
+              aria-pressed={showOnlyFavorites}
+              onClick={() => {
+                setStatusFilter('all');
+                updateUrl('all', searchQuery, providerFilter);
+                setShowOnlyFavorites((value) => !value);
+              }}
+              className={pillClasses(showOnlyFavorites ? 'active' : 'all', 'active')}
+            >
+              <Pin className="w-4 h-4 mr-1.5" /> Pinned
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 p-1 bg-slate-200/60 rounded-lg mt-2">
+        <div className="inline-flex flex-wrap md:flex-nowrap md:self-start gap-1 p-1 bg-slate-200/60 rounded-lg mt-2">
           <button
             type="button"
             onClick={() => {
@@ -482,6 +586,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               setSearchQuery('');
               setStatusFilter('all');
               setProviderFilter('all');
+              setShowOnlyFavorites(false);
               updateUrl('all', '', 'all');
             }}
             className="mt-4 text-blue-600 font-medium hover:underline"
@@ -522,6 +627,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                       ),
                     ),
                   );
+                  const favorite = outageHasFavorite(outage);
                   const timeRange = [localTime(outage.startsAt ?? null, now), localTime(outage.endsAt ?? null, now)]
                     .filter((t) => t !== 'unknown time')
                     .join(' – ');
@@ -550,7 +656,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   return (
                     <li key={outage.id} className="flex flex-col">
                       <article
-                        className={`h-full bg-white/95 rounded-xl shadow-md hover:shadow-lg border border-slate-200 overflow-hidden transition-all border-l-4 ${
+                        className={`${favorite ? 'ring-2 ring-blue-400 ring-offset-2' : ''} h-full bg-white/95 rounded-xl shadow-md hover:shadow-lg border border-slate-200 overflow-hidden transition-all border-l-4 ${
                           status === 'active'
                             ? 'border-l-red-500'
                             : status === 'scheduled'
@@ -586,14 +692,35 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
                           {allBarangays.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {allBarangays.map((b) => (
-                                <span
-                                  key={b}
-                                  className="inline-block bg-zinc-100 text-zinc-700 text-lg font-medium px-4 py-2 rounded-lg"
-                                >
-                                  Brgy. {b}
-                                </span>
-                              ))}
+                              {allBarangays.map((b) => {
+                                const key = cleanBarangayName(b);
+                                const pinned = favorites.includes(key);
+                                return (
+                                  <span
+                                    key={b}
+                                    className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-700 text-lg font-medium px-4 py-2 rounded-lg"
+                                  >
+                                    Brgy. {b}
+                                    <button
+                                      type="button"
+                                      aria-label={pinned ? `Unpin ${b}` : `Pin ${b}`}
+                                      title={pinned ? 'Unpin barangay' : 'Pin barangay'}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toggleFavorite(key);
+                                      }}
+                                      className="text-zinc-400 hover:text-blue-600 transition-colors"
+                                    >
+                                      {pinned ? (
+                                        <Pin className="w-4 h-4 fill-blue-600 text-blue-600" />
+                                      ) : (
+                                        <Pin className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
 
