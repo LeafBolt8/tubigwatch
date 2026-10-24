@@ -83,14 +83,23 @@ export default function EnablePush() {
 
     try {
       const result = await Notification.requestPermission();
+      setPermission(result);
 
-      if (result !== 'granted') {
+      if (result === 'denied') {
         setStatus('error');
+        // iOS only delivers web push to apps installed on the home screen, so a Safari tab user
+        // needs the install steps rather than browser-settings advice.
         setMessage(
-          result === 'denied'
-            ? 'Notifications are blocked in your browser settings.'
-            : 'Notification permission was not granted.',
+          /iPad|iPhone|iPod/.test(navigator.userAgent)
+            ? 'To enable alerts on iPhone, tap Share in Safari, choose "Add to Home Screen", then open TubigWatch from your home screen and enable notifications there.'
+            : 'Notifications are blocked. Click the lock icon in your browser address bar, set Notifications to "Allow", then try again.',
         );
+        return;
+      }
+
+      if (result === 'default') {
+        setStatus('error');
+        setMessage('The permission prompt was dismissed. Click the button again and choose "Allow".');
         return;
       }
 
