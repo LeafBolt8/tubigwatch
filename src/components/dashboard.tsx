@@ -211,6 +211,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const cityParam = searchParams.get('city');
+  // Read into state so "Clear filters" can drop the barangay filter even though
+  // replaceState does not remount the dashboard.
+  const [barangayParam, setBarangayParam] = useState(searchParams.get('barangay'));
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -298,12 +301,37 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     window.history.replaceState(null, '', newUrl);
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setProviderFilter('all');
+    setShowOnlyFavorites(false);
+    setBarangayParam(null);
+
+    if (typeof window === 'undefined') return;
+
+    // Drop the map hand-off params (city/barangay) that updateUrl deliberately preserves.
+    const params = new URLSearchParams(window.location.search);
+    params.delete('status');
+    params.delete('q');
+    params.delete('provider');
+    params.delete('city');
+    params.delete('barangay');
+    const queryString = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${queryString ? `?${queryString}` : ''}`,
+    );
+  };
+
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setSearchQuery(params.get('q') || '');
       setStatusFilter(parseStatusFilter(params.get('status')));
       setProviderFilter(parseProviderFilter(params.get('provider')));
+      setBarangayParam(params.get('barangay'));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -392,6 +420,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
     const matchesProvider = providerFilter === 'all' || outage.concessionaire === providerFilter;
     if (!matchesProvider) return false;
+
+    if (barangayParam) {
+      const targetBarangay = cleanBarangayName(barangayParam);
+      const matchesBarangay = outage.affectedAreas.some((area) =>
+        area.barangays.some((b) => cleanBarangayName(b.name) === targetBarangay),
+      );
+      if (!matchesBarangay) return false;
+    }
 
     if (!searchQuery.trim()) return true;
 
@@ -659,13 +695,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
           <p className="text-zinc-500 text-lg leading-relaxed">No outages found matching your criteria.</p>
           <button
             type="button"
-            onClick={() => {
-              setSearchQuery('');
-              setStatusFilter('all');
-              setProviderFilter('all');
-              setShowOnlyFavorites(false);
-              updateUrl('all', '', 'all');
-            }}
+            onClick={clearFilters}
             className="mt-4 rounded-lg text-blue-600 font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             Clear filters
