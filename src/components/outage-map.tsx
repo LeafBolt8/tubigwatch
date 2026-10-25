@@ -341,7 +341,9 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
                   </span>
                   <br />
                   <Link
-                    href={`/?city=${encodeURIComponent(city)}`}
+                    href={`/?city=${encodeURIComponent(city)}${
+                      statusFilter !== 'all' ? `&status=${statusFilter}` : ''
+                    }${providerFilter !== 'all' ? `&provider=${providerFilter}` : ''}`}
                     className="mt-2 inline-block bg-blue-600 text-white! px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
                   >
                     View Details
