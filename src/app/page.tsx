@@ -123,7 +123,7 @@ export default async function HomePage(props: { searchParams: Promise<Record<str
           <Link href="/privacy" className="hover:text-blue-600 transition-colors">
             Privacy Policy
           </Link>
-          <span>\u00b7</span>
+          <span aria-hidden="true">&middot;</span>
           <a
             href="mailto:hello@tubigwatch.app"
             className="hover:text-blue-600 transition-colors"
