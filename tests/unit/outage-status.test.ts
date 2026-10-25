@@ -64,6 +64,16 @@ describe('computeStatus', () => {
     expect(computeStatus(outage, NOW)).toBe('active');
   });
 
+  test('restores an open-ended outage that started more than 14 days ago', () => {
+    const outage = build({ endsAt: undefined, startsAt: '2026-10-05T08:00:00+08:00' });
+    expect(computeStatus(outage, NOW)).toBe('restored');
+  });
+
+  test('keeps an open-ended outage that started three days ago active', () => {
+    const outage = build({ endsAt: undefined, startsAt: '2026-10-22T08:00:00+08:00' });
+    expect(computeStatus(outage, NOW)).toBe('active');
+  });
+
   test('keeps a future outage without an end time scheduled', () => {
     const outage = build({ endsAt: undefined, startsAt: '2026-10-27T08:00:00+08:00' });
     expect(computeStatus(outage, NOW)).toBe('scheduled');
