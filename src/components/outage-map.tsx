@@ -154,9 +154,10 @@ function popupHtml(feature: BarangayProperties, state: PopupState): string {
         .join('')}</ul>`
     : '';
 
-  const href = `/?city=${encodeURIComponent(city)}${
-    state.statusFilter !== 'all' ? `&status=${state.statusFilter}` : ''
-  }${state.providerFilter !== 'all' ? `&provider=${state.providerFilter}` : ''}`;
+  const statusParam = state.statusFilter !== 'all' ? `&status=${state.statusFilter}` : '';
+  const providerParam = state.providerFilter !== 'all' ? `&provider=${state.providerFilter}` : '';
+
+  const href = `/?city=${encodeURIComponent(city)}&barangay=${encodeURIComponent(barangay)}${statusParam}${providerParam}`;
 
   return `<div class="space-y-1 text-sm text-zinc-900">
     <p class="text-base font-bold">${escapeHtml(barangay)}</p>
