@@ -46,9 +46,16 @@ test('city pin button is focusable and has a visible focus ring', async ({ page 
 test('map popup view details button has visible text', async ({ page }) => {
   await page.goto('/map?source=fixtures');
 
-  const firstMarker = page.locator('.leaflet-marker-icon').first();
-  await expect(firstMarker).toBeVisible();
-  await firstMarker.click();
+  // Barangay boundaries replace the old city pins, so the popup is reached by clicking the map
+  // rather than a marker icon.
+  const map = page.locator('.leaflet-container');
+  await expect(map).toBeVisible();
+  // Attached, not visible: some rendered paths are degenerate (d="M0 0") and never visible.
+  await page.waitForSelector('.leaflet-interactive', { state: 'attached' });
+
+  // The map starts below the fold, and a raw mouse click would land off-screen.
+  await map.scrollIntoViewIfNeeded();
+  await map.click();
 
   const viewDetailsLink = page.getByRole('link', { name: 'View Details' });
   await expect(viewDetailsLink).toBeVisible();
