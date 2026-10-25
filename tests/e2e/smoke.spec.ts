@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  // Freeze the clock to Oct 16, 2026, 08:00 AM (Philippine Time)
+  // This ensures the test fixtures never expire and always render as active.
+  await page.clock.setFixedTime(new Date('2026-10-16T08:00:00+08:00'));
+});
+
 test('home page renders the TubigWatch heading', async ({ page }) => {
   await page.goto('/?source=fixtures');
   await page.waitForURL(/\/.*\?source=fixtures/);
