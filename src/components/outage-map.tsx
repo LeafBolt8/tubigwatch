@@ -2,7 +2,8 @@
 
 import 'leaflet/dist/leaflet.css';
 import type { Outage } from '@/lib/schemas/outage';
-import { GeoJSON, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PathOptions } from 'leaflet';
 import L from 'leaflet';
@@ -69,15 +70,21 @@ const SCHEDULED_STYLE: PathOptions = {
 };
 
 /**
- * City-centre anchor for an active advisory. A single barangay polygon is a few pixels across at
- * city-wide zoom, so the dot gives a resident something to aim at; the polygons still carry the
- * exact boundary once they zoom in.
+ * City-centre anchors. A single barangay polygon is a few pixels across at city-wide zoom, so the
+ * pin gives a resident something to aim at; the polygons still carry the exact boundary once they
+ * zoom in. The pin colour mirrors the worst advisory in that city.
  */
 const ACTIVE_CITY_ICON = L.divIcon({
-  className: '',
-  html: '<span class="relative flex h-4 w-4"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75 motion-reduce:animate-none"></span><span class="relative inline-flex h-4 w-4 rounded-full bg-red-600 ring-2 ring-white"></span></span>',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
+  className: 'custom-city-pin',
+  html: '<div class="w-5 h-5 rounded-full border-2 border-white bg-red-500 shadow-md transition-transform hover:scale-110"></div>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+const SCHEDULED_CITY_ICON = L.divIcon({
+  className: 'custom-city-pin',
+  html: '<div class="w-5 h-5 rounded-full border-2 border-white bg-amber-500 shadow-md transition-transform hover:scale-110"></div>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
 });
 // Boundaries carry no advisory: faint outlines give the map shape without competing for attention.
 const NEUTRAL_STYLE: PathOptions = {
@@ -226,12 +233,24 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
     popupState.current = { index, statusFilter, providerFilter };
   }, [index, statusFilter, providerFilter]);
 
-  const activeCityMarkers = useMemo(() => {
+  // One pin per city, carrying every current advisory for that city so the popup can name the
+  // count. Restored and cancelled rows are left out: they are not advisories, so an amber pin for
+  // them would claim an outage the polygons already draw as neutral.
+  const cityPins = useMemo(() => {
     const now = new Date();
-    const markers = new Map<string, { city: string; coords: [number, number] }>();
+    const pins = new Map<
+      string,
+      {
+        city: string;
+        coords: [number, number];
+        outageIds: Set<string>;
+        hasActive: boolean;
+      }
+    >();
 
     for (const outage of outages) {
-      if (computeStatus(outage, now) !== 'active') continue;
+      const status = computeStatus(outage, now);
+      if (status !== 'active' && status !== 'scheduled') continue;
 
       const cityLabels = new Set<string>();
       for (const area of outage.affectedAreas) {
@@ -243,11 +262,32 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
 
       for (const city of cityLabels) {
         const coords = getCityCoords(city);
-        if (coords) markers.set(cityKey(city), { city, coords });
+        if (!coords) continue;
+
+        const key = cityKey(city);
+        const existing = pins.get(key);
+
+        if (existing) {
+          existing.outageIds.add(outage.id);
+          if (status === 'active') existing.hasActive = true;
+          continue;
+        }
+
+        pins.set(key, {
+          city,
+          coords,
+          outageIds: new Set([outage.id]),
+          hasActive: status === 'active',
+        });
       }
     }
 
-    return [...markers.values()];
+    return [...pins.values()].map(({ city, coords, outageIds, hasActive }) => ({
+      city,
+      coords,
+      outageCount: outageIds.size,
+      hasActive,
+    }));
   }, [outages]);
 
   const style = useMemo(
@@ -282,14 +322,35 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
         {boundaries && (
           <GeoJSON data={boundaries} style={style} onEachFeature={onEachFeature} />
         )}
-        {activeCityMarkers.map(({ city, coords }) => (
-          <Marker
-            key={cityKey(city)}
-            position={coords}
-            icon={ACTIVE_CITY_ICON}
-            keyboard={false}
-          />
-        ))}
+        {cityPins.map(({ city, coords, outageCount, hasActive }) => {
+          const label = `${city}: ${outageCount} ${outageCount === 1 ? 'outage' : 'outages'}`;
+
+          return (
+            <Marker
+              key={cityKey(city)}
+              position={coords}
+              icon={hasActive ? ACTIVE_CITY_ICON : SCHEDULED_CITY_ICON}
+              title={label}
+            >
+              <Popup>
+                <div className="p-2 text-center">
+                  <strong className="text-lg text-slate-900">{city}</strong>
+                  <br />
+                  <span className="text-sm text-zinc-600">
+                    {outageCount} {outageCount === 1 ? 'outage' : 'outages'}
+                  </span>
+                  <br />
+                  <Link
+                    href={`/?city=${encodeURIComponent(city)}`}
+                    className="mt-2 inline-block bg-blue-600 text-white! px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
+                  >
+                    View Details
+                  </Link>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );
