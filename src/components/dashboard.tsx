@@ -12,30 +12,12 @@ import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
 import { syncPushSubscription } from '@/lib/utils/push-sync';
+import { computeStatus } from '@/lib/utils/outage-status';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
 type FavoriteType = 'city' | 'barangay';
 type Favorite = { type: FavoriteType; name: string };
-
-function computeStatus(outage: Outage, now: Date): OutageStatus {
-  // 1. Check if it has already ended — always restore, regardless of raw status.
-  const endsAt = outage.endsAt ? new Date(outage.endsAt) : null;
-  if (endsAt && endsAt <= now) {
-    return 'restored';
-  }
-
-  // 2. Fallback to raw status.
-  if (outage.status) return outage.status;
-
-  // 3. Fallback to time-based logic.
-  const startsAt = outage.startsAt ? new Date(outage.startsAt) : null;
-  if (!startsAt && !endsAt) return 'unknown';
-  const started = startsAt !== null && startsAt <= now;
-  if (outage.scheduled) return 'scheduled';
-  if (started) return 'active';
-  return 'unknown';
-}
 
 function displayBadgeValue(status: OutageStatus): string {
   return status.toUpperCase();

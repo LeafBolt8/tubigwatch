@@ -2,25 +2,35 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 
 /**
- * Effective status for an outage row.
+ * Effective status for an outage row, derived from its timestamps.
  *
- * A past `endsAt` always means restored, regardless of the raw status. Otherwise the raw status
- * wins; only rows without one fall back to the schedule. Shared by the map page and its pins so a
- * city's marker colour cannot disagree with the rows it represents.
+ * The upstream APIs mislabel rows — a month-long maintenance job can stay `scheduled` after it
+ * starts, and a future window can arrive labelled `active` — so the clock decides, not the raw
+ * status. Cancellation is the one exception: withdrawing a job is a decision the clock cannot see.
+ * Shared by the dashboard, the map page and the map pins so they cannot disagree.
  */
 export function computeStatus(outage: Outage, now: Date): OutageStatus {
-  const endsAt = outage.endsAt ? new Date(outage.endsAt) : null;
-  if (endsAt && endsAt <= now) {
+  if (outage.status === 'cancelled') return 'cancelled';
+
+  const currentTime = now.getTime();
+  const startsAt = outage.startsAt ? new Date(outage.startsAt).getTime() : null;
+  const endsAt = outage.endsAt ? new Date(outage.endsAt).getTime() : null;
+
+  if (endsAt !== null && endsAt <= currentTime) {
     return 'restored';
   }
 
+  if (startsAt !== null && startsAt <= currentTime && (endsAt === null || endsAt > currentTime)) {
+    return 'active';
+  }
+
+  if (startsAt !== null && startsAt > currentTime) {
+    return 'scheduled';
+  }
+
+  // Only reachable when a timestamp is missing or unparseable; trust the source as a last resort.
   if (outage.status) return outage.status;
-
-  const startsAt = outage.startsAt ? new Date(outage.startsAt) : null;
-  if (!startsAt && !endsAt) return 'unknown';
-
-  const started = startsAt !== null && startsAt <= now;
   if (outage.scheduled) return 'scheduled';
-  if (started) return 'active';
+
   return 'unknown';
 }
