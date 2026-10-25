@@ -11,6 +11,7 @@ import LiveCountdown from '@/components/live-countdown';
 import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
+import { cityKey } from '@/lib/utils/barangay-geo';
 import { syncPushSubscription } from '@/lib/utils/push-sync';
 import { computeStatus } from '@/lib/utils/outage-status';
 
@@ -210,9 +211,9 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const [userCity, setUserCity] = useState<string | null>(null);
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const cityParam = searchParams.get('city');
-  // Read into state so "Clear filters" can drop the barangay filter even though
-  // replaceState does not remount the dashboard.
+  // Read into state so "Clear filters" can drop the map hand-off even though replaceState
+  // does not remount the dashboard.
+  const [cityParam, setCityParam] = useState(searchParams.get('city'));
   const [barangayParam, setBarangayParam] = useState(searchParams.get('barangay'));
 
   useEffect(() => {
@@ -306,6 +307,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
     setStatusFilter('all');
     setProviderFilter('all');
     setShowOnlyFavorites(false);
+    setCityParam(null);
     setBarangayParam(null);
 
     if (typeof window === 'undefined') return;
@@ -331,6 +333,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
       setSearchQuery(params.get('q') || '');
       setStatusFilter(parseStatusFilter(params.get('status')));
       setProviderFilter(parseProviderFilter(params.get('provider')));
+      setCityParam(params.get('city'));
       setBarangayParam(params.get('barangay'));
     };
 
@@ -420,6 +423,14 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
     const matchesProvider = providerFilter === 'all' || outage.concessionaire === providerFilter;
     if (!matchesProvider) return false;
+
+    if (cityParam) {
+      const targetCity = cityKey(cityParam);
+      const matchesCity = outage.affectedAreas.some((area) =>
+        area.barangays.some((b) => b.city && cityKey(b.city) === targetCity),
+      );
+      if (!matchesCity) return false;
+    }
 
     if (barangayParam) {
       const targetBarangay = cleanBarangayName(barangayParam);

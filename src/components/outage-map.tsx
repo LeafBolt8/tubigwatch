@@ -136,6 +136,8 @@ type PopupState = {
   index: Map<string, BarangayIndexEntry>;
   statusFilter: 'all' | 'active' | 'scheduled';
   providerFilter: 'all' | 'maynilad' | 'manila-water';
+  /** Query fragment that keeps `source=fixtures` on the hand-off link, or '' in live mode. */
+  fixturesParam: string;
 };
 
 function popupHtml(feature: BarangayProperties, state: PopupState): string {
@@ -157,7 +159,7 @@ function popupHtml(feature: BarangayProperties, state: PopupState): string {
   const statusParam = state.statusFilter !== 'all' ? `&status=${state.statusFilter}` : '';
   const providerParam = state.providerFilter !== 'all' ? `&provider=${state.providerFilter}` : '';
 
-  const href = `/?city=${encodeURIComponent(city)}&barangay=${encodeURIComponent(barangay)}${statusParam}${providerParam}`;
+  const href = `/?city=${encodeURIComponent(city)}&barangay=${encodeURIComponent(barangay)}${statusParam}${providerParam}${state.fixturesParam}`;
 
   return `<div class="space-y-1 text-sm text-zinc-900">
     <p class="text-base font-bold">${escapeHtml(barangay)}</p>
@@ -227,12 +229,20 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
 
   const index = useMemo(() => buildBarangayIndex(outages, new Date()), [outages]);
 
+  // Fixtures mode is a dev switch that lives on the page URL. Links must carry it, or clicking
+  // through silently swaps the map's fixtures for the live dataset on the dashboard.
+  const fixturesParam =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('source') === 'fixtures'
+      ? '&source=fixtures'
+      : '';
+
   // Popup content is built when the user opens a popup, so it must read the latest filters rather
   // than the ones captured when the layer was first created.
-  const popupState = useRef<PopupState>({ index, statusFilter, providerFilter });
+  const popupState = useRef<PopupState>({ index, statusFilter, providerFilter, fixturesParam });
   useEffect(() => {
-    popupState.current = { index, statusFilter, providerFilter };
-  }, [index, statusFilter, providerFilter]);
+    popupState.current = { index, statusFilter, providerFilter, fixturesParam };
+  }, [index, statusFilter, providerFilter, fixturesParam]);
 
   // One pin per city, carrying every current advisory for that city so the popup can name the
   // count. Restored and cancelled rows are left out: they are not advisories, so an amber pin for
@@ -344,7 +354,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
                   <Link
                     href={`/?city=${encodeURIComponent(city)}${
                       statusFilter !== 'all' ? `&status=${statusFilter}` : ''
-                    }${providerFilter !== 'all' ? `&provider=${providerFilter}` : ''}`}
+                    }${providerFilter !== 'all' ? `&provider=${providerFilter}` : ''}${fixturesParam}`}
                     className="mt-2 inline-block bg-blue-600 text-white! px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
                   >
                     View Details
