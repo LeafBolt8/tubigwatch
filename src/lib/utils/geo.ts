@@ -1,3 +1,5 @@
+import { cityKey } from './barangay-geo';
+
 export const CITY_COORDS: Record<string, [number, number]> = {
   'Quezon City': [14.676, 121.0437],
   'Manila': [14.5995, 120.9842],
@@ -40,6 +42,19 @@ export const CITY_COORDS: Record<string, [number, number]> = {
   'Bacoor, Cavite': [14.4624, 120.9645],
   'Imus, Cavite': [14.4297, 120.9367],
 };
+
+/**
+ * CITY_COORDS keyed by the normalized city key, so advisory/boundary spellings ("CITY OF LAS
+ * PIÑAS", "Antipolo, Rizal") resolve to the same point as the plain label.
+ */
+const COORDS_BY_CITY_KEY: Readonly<Record<string, [number, number]>> = Object.fromEntries(
+  Object.entries(CITY_COORDS).map(([city, coords]) => [cityKey(city), coords]),
+);
+
+/** City-centre coordinates for a city label, or undefined when the city is outside the map. */
+export function getCityCoords(city: string): [number, number] | undefined {
+  return CITY_COORDS[city] ?? COORDS_BY_CITY_KEY[cityKey(city)];
+}
 
 // Metro Manila covers a small enough area that squared-degree distance ranks the
 // candidate cities correctly, so there is no need to project to real metres.

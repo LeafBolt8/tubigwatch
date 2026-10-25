@@ -2,17 +2,19 @@
 
 import 'leaflet/dist/leaflet.css';
 import type { Outage } from '@/lib/schemas/outage';
-import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PathOptions } from 'leaflet';
-import type L from 'leaflet';
+import L from 'leaflet';
 
-import { CITY_COORDS, getClosestCity } from '@/lib/utils/geo';
+import { CITY_COORDS, getCityCoords, getClosestCity } from '@/lib/utils/geo';
 import {
   barangayKey,
   buildBarangayIndex,
+  cityKey,
   type BarangayIndexEntry,
 } from '@/lib/utils/barangay-geo';
+import { computeStatus } from '@/lib/utils/outage-status';
 
 const DEFAULT_CENTER: [number, number] = [14.5995, 120.9842];
 const BOUNDARIES_URL = '/data/barangays-lowres.geojson';
@@ -53,18 +55,30 @@ type BarangayCollection = {
 
 const ACTIVE_STYLE: PathOptions = {
   fillColor: '#ef4444',
-  fillOpacity: 0.45,
+  fillOpacity: 0.8,
   color: '#ffffff',
-  weight: 1,
+  weight: 2,
   opacity: 1,
 };
 const SCHEDULED_STYLE: PathOptions = {
   fillColor: '#f59e0b',
-  fillOpacity: 0.45,
+  fillOpacity: 0.8,
   color: '#ffffff',
-  weight: 1,
+  weight: 2,
   opacity: 1,
 };
+
+/**
+ * City-centre anchor for an active advisory. A single barangay polygon is a few pixels across at
+ * city-wide zoom, so the dot gives a resident something to aim at; the polygons still carry the
+ * exact boundary once they zoom in.
+ */
+const ACTIVE_CITY_ICON = L.divIcon({
+  className: '',
+  html: '<span class="relative flex h-4 w-4"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75 motion-reduce:animate-none"></span><span class="relative inline-flex h-4 w-4 rounded-full bg-red-600 ring-2 ring-white"></span></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
 // Boundaries carry no advisory: faint outlines give the map shape without competing for attention.
 const NEUTRAL_STYLE: PathOptions = {
   fillColor: '#94a3b8',
@@ -212,6 +226,30 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
     popupState.current = { index, statusFilter, providerFilter };
   }, [index, statusFilter, providerFilter]);
 
+  const activeCityMarkers = useMemo(() => {
+    const now = new Date();
+    const markers = new Map<string, { city: string; coords: [number, number] }>();
+
+    for (const outage of outages) {
+      if (computeStatus(outage, now) !== 'active') continue;
+
+      const cityLabels = new Set<string>();
+      for (const area of outage.affectedAreas) {
+        for (const barangay of area.barangays) {
+          if (barangay.city) cityLabels.add(barangay.city);
+        }
+      }
+      if (cityLabels.size === 0 && outage.city) cityLabels.add(outage.city);
+
+      for (const city of cityLabels) {
+        const coords = getCityCoords(city);
+        if (coords) markers.set(cityKey(city), { city, coords });
+      }
+    }
+
+    return [...markers.values()];
+  }, [outages]);
+
   const style = useMemo(
     () => (feature?: unknown): PathOptions => {
       const properties = readProperties(feature);
@@ -237,12 +275,20 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
       >
         <MapRecenter center={mapCenter} />
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         {boundaries && (
           <GeoJSON data={boundaries} style={style} onEachFeature={onEachFeature} />
         )}
+        {activeCityMarkers.map(({ city, coords }) => (
+          <Marker
+            key={cityKey(city)}
+            position={coords}
+            icon={ACTIVE_CITY_ICON}
+            keyboard={false}
+          />
+        ))}
       </MapContainer>
     </div>
   );
