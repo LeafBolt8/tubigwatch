@@ -78,3 +78,27 @@ test('no horizontal overflow on mobile', async ({ page }) => {
   clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 });
+
+test('clicking a map pin navigates to the filtered dashboard', async ({ page }) => {
+  // 1. Load the map in fixtures mode
+  await page.goto('/map?source=fixtures');
+
+  // 2. Wait for the map and a pin to load
+  const pin = page.locator('.custom-city-pin').first();
+  await expect(pin).toBeVisible();
+
+  // 3. Click the pin to open the popup
+  await pin.click();
+
+  // 4. Click the "View Details" link in the popup
+  const viewDetailsLink = page.getByRole('link', { name: 'View Details' });
+  await expect(viewDetailsLink).toBeVisible();
+  await viewDetailsLink.click();
+
+  // 5. Verify we are on the dashboard with the correct URL
+  await expect(page).toHaveURL(/\/\?city=.*&source=fixtures/);
+
+  // 6. Verify the dashboard is filtered by the city
+  const cityHeading = page.locator('h2').first();
+  await expect(cityHeading).toBeVisible();
+});
