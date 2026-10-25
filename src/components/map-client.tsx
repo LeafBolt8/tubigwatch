@@ -129,6 +129,18 @@ export default function MapClient({ outages }: MapClientProps) {
     return true;
   });
 
+  // The polygons are the only place an advisory's location is visible. This list carries the same
+  // information as text, so a screen reader or a keyboard user never has to read a canvas.
+  const affectedAreas = Array.from(
+    new Set(
+      filteredOutages.flatMap((outage) =>
+        outage.affectedAreas.flatMap((area) =>
+          area.barangays.map((barangay) => `${barangay.name}, ${barangay.city}`),
+        ),
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
   return (
     <div>
       <div className="mb-8 space-y-4 rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-sm md:shadow-md transition-shadow">
@@ -176,6 +188,32 @@ export default function MapClient({ outages }: MapClientProps) {
           <div className="w-3 h-3 bg-zinc-400 rounded-full" aria-hidden="true"></div> Status unknown
         </div>
       </div>
+
+      <section
+        aria-labelledby="affected-barangays-heading"
+        className="mt-8 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm md:p-8"
+      >
+        <h2
+          id="affected-barangays-heading"
+          className="mb-4 text-2xl font-extrabold text-slate-900"
+        >
+          Affected Barangays ({affectedAreas.length})
+        </h2>
+        {affectedAreas.length === 0 ? (
+          <p className="text-lg text-zinc-500">No outages match your current filters.</p>
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {affectedAreas.map((area) => (
+              <li
+                key={area}
+                className="rounded-lg bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-700 md:text-base"
+              >
+                {area}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
