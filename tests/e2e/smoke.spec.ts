@@ -152,3 +152,32 @@ test('every city with affected barangays gets a pin', async ({ page }) => {
     expect(pinCities.has(city)).toBe(true);
   }
 });
+
+test('filter pills correctly filter the dashboard cards', async ({ page }) => {
+  await page.goto('/?source=fixtures');
+
+  // Click the Active filter
+  await page.getByRole('button', { name: /^Active/ }).click();
+
+  // Every article card should have an ACTIVE badge
+  const articles = page.getByRole('article');
+  const count = await articles.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (let i = 0; i < count; i += 1) {
+    const card = articles.nth(i);
+    await expect(card.locator('span', { hasText: /^ACTIVE$/ })).toBeVisible();
+    await expect(card.locator('span', { hasText: /^SCHEDULED$/ })).toBeHidden();
+  }
+
+  // Click the Scheduled filter
+  await page.getByRole('button', { name: /^Scheduled/ }).click();
+  const countScheduled = await articles.count();
+  expect(countScheduled).toBeGreaterThan(0);
+
+  for (let i = 0; i < countScheduled; i += 1) {
+    const card = articles.nth(i);
+    await expect(card.locator('span', { hasText: /^SCHEDULED$/ })).toBeVisible();
+    await expect(card.locator('span', { hasText: /^ACTIVE$/ })).toBeHidden();
+  }
+});
