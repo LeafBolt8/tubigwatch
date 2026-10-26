@@ -172,17 +172,27 @@ type OutageMapProps = {
   outages: Outage[];
   statusFilter: 'all' | 'active' | 'scheduled';
   providerFilter: 'all' | 'maynilad' | 'manila-water';
+  /** City-page hand-off; defaults to the Metro Manila centre. */
+  initialCenter?: [number, number];
+  initialZoom?: number;
 };
 
-export default function OutageMap({ outages, statusFilter, providerFilter }: OutageMapProps) {
-  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
+export default function OutageMap({
+  outages,
+  statusFilter,
+  providerFilter,
+  initialCenter,
+  initialZoom,
+}: OutageMapProps) {
+  const [mapCenter, setMapCenter] = useState<[number, number]>(initialCenter ?? DEFAULT_CENTER);
   const [boundaries, setBoundaries] = useState<BarangayCollection | null>(null);
 
   // Only follow the "near me" preference the dashboard already stores, so the map never asks for
-  // location on its own.
+  // location on its own. An explicit city hand-off outranks that stored preference.
   useEffect(() => {
     let cancelled = false;
 
+    if (initialCenter) return;
     if (localStorage.getItem('tubigwatch_near_me') !== 'true') return;
     if (!('geolocation' in navigator)) return;
 
@@ -201,7 +211,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialCenter]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -319,7 +329,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
     <div className="space-y-6">
       <MapContainer
         center={mapCenter}
-        zoom={11}
+        zoom={initialZoom ?? 11}
         className="h-[70vh] min-h-[600px] w-full rounded-2xl border border-slate-200 shadow-sm z-0"
       >
         <MapRecenter center={mapCenter} />

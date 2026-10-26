@@ -126,9 +126,9 @@ export default async function CityPage(props: CityPageProps) {
       return a.outage.startsAt.getTime() - b.outage.startsAt.getTime();
     });
 
-  const fixturesQuery = isFixtures ? '?source=fixtures' : '';
-  const mapHref = `/map${fixturesQuery}`;
-  const backHref = `/${fixturesQuery}`;
+  const fixturesParam = isFixtures ? '&source=fixtures' : '';
+  const mapHref = `/map?city=${encodeURIComponent(cityName)}${fixturesParam}`;
+  const backHref = isFixtures ? '/?source=fixtures' : '/';
 
   return (
     <main className="mx-4 my-8 md:mx-auto max-w-5xl px-4 py-8 md:px-8 text-zinc-900 text-[16px] leading-[1.6]">
@@ -169,7 +169,7 @@ export default async function CityPage(props: CityPageProps) {
               href={mapHref}
               className="inline-flex justify-center items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              View Map
+              View on Map
             </Link>
           </div>
         </div>

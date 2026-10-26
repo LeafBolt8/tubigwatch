@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import type { Outage } from '@/lib/schemas/outage';
+import { getCityCoords } from '@/lib/utils/geo';
 import { computeStatus } from '@/lib/utils/outage-status';
 
 const OutageMap = dynamic(
@@ -85,6 +86,10 @@ type MapClientProps = {
 
 export default function MapClient({ outages }: MapClientProps) {
   const searchParams = useSearchParams();
+  // A city-page hand-off carries the city label; derive the initial view synchronously so the
+  // map never paints the Metro Manila default first and then jumps.
+  const cityParam = searchParams.get('city');
+  const cityCenter = cityParam ? getCityCoords(cityParam) : undefined;
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
     parseStatusFilter(searchParams.get('status')),
   );
@@ -174,6 +179,8 @@ export default function MapClient({ outages }: MapClientProps) {
           outages={filteredOutages}
           statusFilter={statusFilter}
           providerFilter={providerFilter}
+          initialCenter={cityCenter}
+          initialZoom={cityCenter ? 13 : 11}
         />
       </Suspense>
 

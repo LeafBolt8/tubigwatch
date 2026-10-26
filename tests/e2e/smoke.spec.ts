@@ -305,6 +305,10 @@ test('city heading opens the city page in the current data mode', async ({ page 
   await expect(page.getByRole('article').first()).toBeVisible();
   await expect(page.getByText('Data mode: fixtures (not live)')).toBeVisible();
 
+  await page.getByRole('link', { name: 'View on Map' }).click();
+  await expect(page).toHaveURL(/\/map\?city=.+&source=fixtures$/);
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+
   // The slug drops the ñ; the heading must still come from the known city list.
   await page.goto('/city/las-pinas?source=fixtures');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Las Piñas');
