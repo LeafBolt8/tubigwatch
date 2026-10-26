@@ -287,3 +287,25 @@ test('search query persists after reload and filters cards', async ({ page }) =>
   const countAfter = await page.getByRole('article').count();
   expect(countAfter).toBe(count);
 });
+
+test('city heading opens the city page in the current data mode', async ({ page }) => {
+  await page.goto('/?source=fixtures');
+  await expect(page.getByRole('article').first()).toBeVisible();
+
+  const cityLink = page.getByRole('heading', { level: 2 }).first().getByRole('link');
+  await expect(cityLink).toBeVisible();
+  const cityName = (await cityLink.innerText()).split('→')[0]?.trim();
+  expect(cityName).toBeTruthy();
+
+  await cityLink.click();
+
+  await expect(page).toHaveURL(/\/city\/[a-z-]+\?source=fixtures$/);
+  await expect(page).toHaveTitle(/Water Outages in .+ \| TubigWatch/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(cityName!);
+  await expect(page.getByRole('article').first()).toBeVisible();
+  await expect(page.getByText('Data mode: fixtures (not live)')).toBeVisible();
+
+  // The slug drops the ñ; the heading must still come from the known city list.
+  await page.goto('/city/las-pinas?source=fixtures');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Las Piñas');
+});

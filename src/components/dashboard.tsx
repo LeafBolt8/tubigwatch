@@ -4,7 +4,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
+import { ArrowRight, Copy, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
 
 import EnablePush from '@/components/enable-push';
 import LiveCountdown from '@/components/live-countdown';
@@ -14,6 +14,7 @@ import { cleanBarangayName } from '@/lib/utils/barangay-name';
 import { cityKey } from '@/lib/utils/barangay-geo';
 import { syncPushSubscription } from '@/lib/utils/push-sync';
 import { computeStatus } from '@/lib/utils/outage-status';
+import { slugify } from '@/lib/utils/slugify';
 
 type StatusFilter = 'all' | 'active' | 'scheduled';
 type ProviderFilter = 'all' | 'maynilad' | 'manila-water';
@@ -196,6 +197,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
   const currentTime = new Date();
   const [now, setNow] = useState(currentTime);
   const searchParams = useSearchParams();
+  const sourceParam = searchParams.get('source');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(parseStatusFilter(searchParams.get('status')));
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>(
@@ -718,9 +720,15 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <li key={city}>
               <h2
                 id={`city-${encodeURIComponent(city)}`}
-                className="bg-white text-slate-900 inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold mb-6 scroll-mt-24"
+                className="bg-white text-slate-900 inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-2xl md:text-3xl font-extrabold mb-6 scroll-mt-24 hover:border-slate-300 transition-colors"
               >
-                {city ?? 'Unknown'}
+                <Link
+                  href={`/city/${slugify(city)}${sourceParam === 'fixtures' ? '?source=fixtures' : ''}`}
+                  className="inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                >
+                  {city ?? 'Unknown'}
+                  <ArrowRight className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                </Link>
                 <button
                   type="button"
                   aria-label={isFavorited('city', city) ? `Unpin ${city}` : `Pin ${city}`}
