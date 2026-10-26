@@ -4,6 +4,13 @@
 
 import { Outage, OutageSchema } from '@/lib/schemas/outage';
 
+/**
+ * Timestamps are relative to load time so the sample advisories never age out of the statuses
+ * they are meant to demonstrate. The server evaluates fixtures with the real clock, so a fixed
+ * calendar date would eventually leave the map with nothing to draw and the tests with nothing
+ * to assert.
+ */
+const offsetDate = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 1000);
 const UTC = (iso: string) => new Date(iso);
 
 const _outageFixtures: Outage[] = [
@@ -12,8 +19,8 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'maynilad',
     status: 'active',
     reason: 'Emergency repair of a 300mm mainline leak along Quirino Highway.',
-    startsAt: UTC('2026-10-16T06:00:00+08:00'),
-    estimatedRestoration: UTC('2026-10-16T18:00:00+08:00'),
+    startsAt: offsetDate(-2),
+    estimatedRestoration: offsetDate(4),
     affectedAreas: [
       {
         barangays: [
@@ -35,8 +42,8 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'active',
     reason: 'Scheduled valve replacement at the Poblacion pumping station ran over its window.',
-    startsAt: UTC('2026-10-16T05:00:00+08:00'),
-    endsAt: UTC('2026-10-16T20:00:00+08:00'),
+    startsAt: offsetDate(-2),
+    endsAt: offsetDate(4),
     affectedAreas: [
       {
         barangays: [{ name: 'Poblacion', city: 'Makati', province: 'Metro Manila' }],
@@ -55,9 +62,9 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'scheduled',
     reason: 'Interconnection works for the Ususan service line.',
-    startsAt: UTC('2026-10-17T22:00:00+08:00'),
-    endsAt: UTC('2026-10-18T04:00:00+08:00'),
-    estimatedRestoration: UTC('2026-10-18T04:00:00+08:00'),
+    startsAt: offsetDate(24),
+    endsAt: offsetDate(30),
+    estimatedRestoration: offsetDate(30),
     affectedAreas: [
       {
         barangays: [{ name: 'Ususan', city: 'Taguig', province: 'Metro Manila', psgcCode: '137607002' }],
@@ -76,8 +83,8 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'manila-water',
     status: 'scheduled',
     reason: 'Reservoir cleaning at the Kapitolyo facility.',
-    startsAt: UTC('2026-10-18T23:00:00+08:00'),
-    endsAt: UTC('2026-10-19T05:00:00+08:00'),
+    startsAt: offsetDate(48),
+    endsAt: offsetDate(54),
     affectedAreas: [
       {
         barangays: [{ name: 'Kapitolyo', city: 'Pasig', province: 'Metro Manila', psgcCode: '137403013' }],
@@ -97,8 +104,8 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'maynilad',
     status: 'restored',
     reason: 'Pipe burst along A. Mabini Street repaired ahead of the published estimate.',
-    startsAt: UTC('2026-10-15T08:00:00+08:00'),
-    endsAt: UTC('2026-10-15T15:30:00+08:00'),
+    startsAt: offsetDate(-48),
+    endsAt: offsetDate(-24),
     affectedAreas: [
       {
         barangays: [{ name: 'Barangay 176', city: 'Caloocan', province: 'Metro Manila' }],
@@ -117,7 +124,7 @@ const _outageFixtures: Outage[] = [
     concessionaire: 'maynilad',
     status: 'cancelled',
     reason: 'Planned pressure testing in Poblacion was called off by the operations team.',
-    startsAt: UTC('2026-10-19T01:00:00+08:00'),
+    startsAt: offsetDate(72),
     affectedAreas: [
       {
         barangays: [{ name: 'Poblacion', city: 'Makati', province: 'Metro Manila' }],

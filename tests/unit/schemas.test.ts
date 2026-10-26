@@ -42,10 +42,11 @@ describe('OutageSchema', () => {
   });
 
   test('startsAt is a Date instance and round-trips the local time', () => {
-    const parsed = OutageSchema.parse(firstFixture());
+    const fixture = firstFixture();
+    const parsed = OutageSchema.parse(fixture);
     expect(parsed.startsAt).toBeInstanceOf(Date);
-    // 2026-10-16T06:00:00+08:00 coerces to a Date whose UTC instant is 2026-10-15T22:00:00Z.
-    expect(parsed.startsAt.toISOString()).toBe('2026-10-15T22:00:00.000Z');
+    // Fixture timestamps are relative to load time, so compare against the source instant.
+    expect(parsed.startsAt.toISOString()).toBe(fixture.startsAt.toISOString());
   });
 
   test('a string without offset is still a valid Date (coerced, not rejected)', () => {
@@ -89,12 +90,12 @@ describe('OutageSchema', () => {
 describe('hardened contract (runtime proof)', () => {
   // These are the same cases the task's node --input-type=module proof would run;
   // Vitest resolves the .ts imports the same way tsc and next build do.
-  const f = outageFixtures[0];
+  const f = firstFixture();
   const parsed = OutageSchema.parse(f);
 
   test('startsAt is a Date instance and round-trips the local time', () => {
     expect(parsed.startsAt).toBeInstanceOf(Date);
-    expect(parsed.startsAt.toISOString()).toBe('2026-10-15T22:00:00.000Z');
+    expect(parsed.startsAt.toISOString()).toBe(f.startsAt.toISOString());
   });
 
   test('reason "5 < 10" is accepted', () => {
