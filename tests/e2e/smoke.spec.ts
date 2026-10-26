@@ -93,18 +93,23 @@ test('clicking a map pin navigates to the filtered dashboard', async ({ page }) 
   const pin = page.locator('.custom-city-pin').first();
   await expect(pin).toBeVisible();
 
-  // 3. Click the pin to open the popup
+  // 3. Get the specific city name from the pin's title (e.g., "Quezon City: 1 outage")
+  const pinTitle = await pin.getAttribute('title');
+  const expectedCity = pinTitle?.split(':')[0]?.trim();
+  expect(expectedCity).toBeTruthy();
+
+  // 4. Click the pin to open the popup
   await pin.click();
 
-  // 4. Click the "View Details" link in the popup
+  // 5. Click the "View Details" link in the popup
   const viewDetailsLink = page.getByRole('link', { name: 'View Details' });
   await expect(viewDetailsLink).toBeVisible();
   await viewDetailsLink.click();
 
-  // 5. Verify we are on the dashboard with the correct URL
+  // 6. Verify we are on the dashboard with the correct URL
   await expect(page).toHaveURL(/\/\?city=.*&source=fixtures/);
 
-  // 6. Verify the dashboard is filtered by the city
+  // 7. Verify the dashboard is filtered by the EXACT city we clicked
   const cityHeading = page.locator('h2').first();
-  await expect(cityHeading).toBeVisible();
+  await expect(cityHeading).toContainText(expectedCity!);
 });
