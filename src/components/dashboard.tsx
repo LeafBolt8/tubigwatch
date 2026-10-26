@@ -13,6 +13,7 @@ import { getClosestCity } from '@/lib/utils/geo';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
 import { cityKey } from '@/lib/utils/barangay-geo';
 import { barangaySlug } from '@/lib/utils/barangay-slug';
+import { splitCityLabels } from '@/lib/utils/city-name';
 import { syncPushSubscription } from '@/lib/utils/push-sync';
 import { computeStatus } from '@/lib/utils/outage-status';
 import { slugify } from '@/lib/utils/slugify';
@@ -86,11 +87,6 @@ function primaryCityKey(outage: Outage): string {
     return firstArea.barangays[0].city ?? outage.city ?? 'Unknown';
   }
   return outage.city ?? 'Unknown';
-}
-
-function splitCityKey(raw: string): string {
-  const parts = raw.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
-  return parts.join(', ');
 }
 
 function parseStatusFilter(raw: string | null): StatusFilter {
@@ -463,9 +459,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
 
   const groupedByCity = new Map<string, Outage[]>();
   for (const outage of filteredOutages) {
-    const cities = splitCityKey(primaryCityKey(outage));
-    const cityList = cities.split(',').map((c) => c.trim()).filter(Boolean);
-    for (const city of cityList) {
+    for (const city of splitCityLabels(primaryCityKey(outage))) {
       const grouped = groupedByCity.get(city) ?? [];
       grouped.push(outage);
       groupedByCity.set(city, grouped);
@@ -727,7 +721,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                   href={`/city/${slugify(city)}${sourceParam === 'fixtures' ? '?source=fixtures' : ''}`}
                   className="inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
-                  {city ?? 'Unknown'}
+                  {city.split(',')[0]?.trim() || 'Unknown'}
                   <ArrowRight className="w-5 h-5 text-blue-600" aria-hidden="true" />
                 </Link>
                 <button

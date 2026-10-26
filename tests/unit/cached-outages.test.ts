@@ -72,6 +72,23 @@ describe('getCachedGeminiOutages (Redis snapshot)', () => {
     expect(result.outages).toHaveLength(1);
   });
 
+  it('restores Date objects from the JSON snapshot', async () => {
+    // Redis returns the stored JSON, so timestamps arrive as strings even though the result type
+    // promises Dates. The city and barangay pages call Date methods on them directly.
+    redisGet.mockResolvedValue({
+      outages: [JSON.parse(JSON.stringify(makeOutage('scraped-1', 'Holy Spirit')))],
+      timestamp: Date.now(),
+    });
+    readManualOutages.mockResolvedValue([]);
+
+    const result = await getCachedGeminiOutages();
+
+    expect(result.outages[0]?.startsAt).toBeInstanceOf(Date);
+    expect(result.outages[0]?.startsAt.toISOString()).toBe('2026-10-15T14:00:00.000Z');
+    expect(result.outages[0]?.endsAt).toBeInstanceOf(Date);
+    expect(result.outages[0]?.source.fetchedAt).toBeInstanceOf(Date);
+  });
+
   it('keeps manual rows when no snapshot has been written yet', async () => {
     redisGet.mockResolvedValue(null);
     readManualOutages.mockResolvedValue([makeOutage('manual-1', 'Baesa')]);

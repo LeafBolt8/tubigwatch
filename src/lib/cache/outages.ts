@@ -6,7 +6,7 @@ import { fetchMayniladOutages } from '@/lib/ingestion/maynilad';
 import { readManualOutages } from './manual-outages';
 import { dedupById } from '@/lib/utils/dedup';
 import { normalizeOutages } from '@/lib/utils/normalize-outages';
-import type { Outage } from '@/lib/schemas/outage';
+import { OutageSchema, type Outage } from '@/lib/schemas/outage';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
@@ -84,10 +84,22 @@ export const getCachedGeminiOutages = unstable_cache(
         errors.push(`WARNING: Data is ${Math.round(ageHours)} hours old. The scraper may be broken.`);
       }
 
+      // Redis stores JSON, so timestamps come back as strings even though the type says Date.
+      // Parsing through the schema restores real Dates; the city and barangay pages format and
+      // compare them directly, so a string there throws and the route renders the error boundary.
+      const snapshot = OutageSchema.array().safeParse(data.outages);
+      if (!snapshot.success) {
+        return {
+          outages: manualOutages,
+          errors: ['Stored outage data could not be read.'],
+          fetchedAt: Date.now(),
+        };
+      }
+
       const merged =
         manualOutages.length > 0
-          ? dedupById<Outage>([...data.outages, ...manualOutages])
-          : data.outages;
+          ? dedupById<Outage>([...snapshot.data, ...manualOutages])
+          : snapshot.data;
 
       return { outages: normalizeOutages(merged), errors, fetchedAt: data.timestamp };
     } catch (error) {

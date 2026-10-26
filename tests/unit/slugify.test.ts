@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { canonicalCityName } from '@/lib/utils/city-name';
+import { canonicalCityName, splitCityLabels } from '@/lib/utils/city-name';
 import { deslugify, slugify } from '@/lib/utils/slugify';
 
 describe('slugify', () => {
@@ -32,7 +32,24 @@ describe('canonicalCityName', () => {
     expect(canonicalCityName('paranaque')).toBe('Parañaque');
   });
 
+  test('accepts a city-only slug when the label carries its province', () => {
+    expect(canonicalCityName('binangonan', ['Binangonan, Rizal'])).toBe('Binangonan, Rizal');
+  });
+
   test('returns null for a slug no known city matches', () => {
     expect(canonicalCityName('atlantis')).toBeNull();
+  });
+});
+
+describe('splitCityLabels', () => {
+  test('keeps a province inside one city label', () => {
+    expect(splitCityLabels('Binangonan, Rizal')).toEqual(['Binangonan, Rizal']);
+  });
+
+  test('splits a row that names several cities', () => {
+    expect(splitCityLabels('Quezon City; Caloocan City')).toEqual([
+      'Quezon City',
+      'Caloocan City',
+    ]);
   });
 });
