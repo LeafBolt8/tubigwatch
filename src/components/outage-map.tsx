@@ -35,7 +35,7 @@ function MapRecenter({ center }: { center: [number, number] }) {
  * Publishes the live view on the container so tests can verify a city hand-off landed, and so a
  * debugging session can read the current centre from the DOM instead of guessing.
  */
-function MapViewReporter() {
+function MapViewReporter({ highlightedBarangay }: { highlightedBarangay?: string }) {
   const map = useMap();
 
   useEffect(() => {
@@ -52,6 +52,12 @@ function MapViewReporter() {
       map.off('moveend zoomend', publish);
     };
   }, [map]);
+
+  useEffect(() => {
+    const container = map.getContainer();
+    if (highlightedBarangay) container.dataset.highlightedBarangay = highlightedBarangay;
+    else delete container.dataset.highlightedBarangay;
+  }, [map, highlightedBarangay]);
 
   return null;
 }
@@ -200,6 +206,8 @@ type OutageMapProps = {
   /** City-page hand-off; defaults to the Metro Manila centre. */
   initialCenter?: [number, number];
   initialZoom?: number;
+  /** Barangay name to publish on the container when a barangay page hands off. */
+  highlightedBarangay?: string;
 };
 
 export default function OutageMap({
@@ -208,6 +216,7 @@ export default function OutageMap({
   providerFilter,
   initialCenter,
   initialZoom,
+  highlightedBarangay,
 }: OutageMapProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>(initialCenter ?? DEFAULT_CENTER);
   const [boundaries, setBoundaries] = useState<BarangayCollection | null>(null);
@@ -358,7 +367,7 @@ export default function OutageMap({
         className="h-[70vh] min-h-[600px] w-full rounded-2xl border border-slate-200 shadow-sm z-0"
       >
         <MapRecenter center={mapCenter} />
-        <MapViewReporter />
+        <MapViewReporter highlightedBarangay={highlightedBarangay} />
         <TileLayer
           attribution='Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"

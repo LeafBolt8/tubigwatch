@@ -82,14 +82,21 @@ function FilterGroup<T extends string>({ label, value, options, onChange }: Filt
 
 type MapClientProps = {
   outages: Outage[];
+  /** Resolved server-side from `?barangay=` against the unfiltered dataset. */
+  initialCenter?: [number, number];
+  highlightedBarangay?: string;
 };
 
-export default function MapClient({ outages }: MapClientProps) {
+export default function MapClient({
+  outages,
+  initialCenter,
+  highlightedBarangay,
+}: MapClientProps) {
   const searchParams = useSearchParams();
   // A city-page hand-off carries the city label; derive the initial view synchronously so the
   // map never paints the Metro Manila default first and then jumps.
   const cityParam = searchParams.get('city');
-  const cityCenter = cityParam ? getCityCoords(cityParam) : undefined;
+  const cityCenter = initialCenter ?? (cityParam ? getCityCoords(cityParam) : undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
     parseStatusFilter(searchParams.get('status')),
   );
@@ -181,6 +188,7 @@ export default function MapClient({ outages }: MapClientProps) {
           providerFilter={providerFilter}
           initialCenter={cityCenter}
           initialZoom={cityCenter ? 13 : 11}
+          highlightedBarangay={highlightedBarangay}
         />
       </Suspense>
 

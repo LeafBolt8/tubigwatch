@@ -341,3 +341,32 @@ test('map centers on city coordinates when hand-off is present', async ({ page }
   await page.getByRole('link', { name: 'Back to Dashboard' }).click();
   await expect(page).toHaveURL(/\/\?source=fixtures$/);
 });
+
+test('barangay page and map hand-off resolve the right city', async ({ page }) => {
+  await page.goto('/?source=fixtures');
+
+  const barangayLink = page.getByRole('link', { name: /Kalusugan/ }).first();
+  await expect(barangayLink).toBeVisible();
+  await barangayLink.click();
+
+  await expect(page).toHaveURL(/\/barangay\/kalusugan-quezon-city\?source=fixtures$/);
+  await expect(page).toHaveTitle(/Water Outages in Kalusugan, Quezon City \| TubigWatch/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Kalusugan');
+  await expect(page.getByRole('article').first()).toBeVisible();
+
+  await page.getByRole('link', { name: 'View on Map' }).click();
+  await expect(page).toHaveURL(/\/map\?barangay=kalusugan-quezon-city&source=fixtures$/);
+
+  const mapContainer = page.locator('.leaflet-container');
+  await expect(mapContainer).toBeVisible();
+  await expect(mapContainer).toHaveAttribute('data-highlighted-barangay', 'Kalusugan');
+  await expect
+    .poll(async () => {
+      const raw = await mapContainer.getAttribute('data-center');
+      if (!raw) return false;
+      const [lat, lng] = raw.split(',').map(Number);
+      if (lat === undefined || lng === undefined) return false;
+      return Math.abs(lat - 14.676) < 0.01 && Math.abs(lng - 121.0437) < 0.01;
+    })
+    .toBe(true);
+});

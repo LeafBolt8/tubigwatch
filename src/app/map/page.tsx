@@ -1,6 +1,8 @@
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
+import { findBarangayBySlug } from '@/lib/utils/barangay-slug';
+import { getCityCoords } from '@/lib/utils/geo';
 import { computeStatus } from '@/lib/utils/outage-status';
 import Link from 'next/link';
 import { Map as MapIcon } from 'lucide-react';
@@ -74,6 +76,13 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
   }
 
   const { outages, freshness, sourceErrors } = pageData;
+  const barangayParam =
+    typeof searchParams.barangay === 'string' ? searchParams.barangay : undefined;
+  // Resolve against the full dataset: a restored row is not drawn, but its barangay page can still
+  // hand off to the map and expect the right city centre.
+  const barangaySpot = barangayParam ? findBarangayBySlug(barangayParam, outages) : null;
+  const handoffCenter = barangaySpot?.city ? getCityCoords(barangaySpot.city) : undefined;
+
   const visibleOutages = outages.filter((o) => {
     const status = computeStatus(o, now);
     return status === 'active' || status === 'scheduled' || status === 'unknown';
@@ -117,7 +126,11 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
         </p>
       )}
 
-      <MapClient outages={visibleOutages} />
+      <MapClient
+        outages={visibleOutages}
+        initialCenter={handoffCenter}
+        highlightedBarangay={barangaySpot?.name}
+      />
 
       <footer className="mt-10 border-t border-slate-200 pt-6 text-sm text-zinc-500 text-center">
         <p className="mb-2">

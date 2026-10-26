@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { getClosestCity } from '@/lib/utils/geo';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
 import { cityKey } from '@/lib/utils/barangay-geo';
+import { barangaySlug } from '@/lib/utils/barangay-slug';
 import { syncPushSubscription } from '@/lib/utils/push-sync';
 import { computeStatus } from '@/lib/utils/outage-status';
 import { slugify } from '@/lib/utils/slugify';
@@ -772,6 +773,19 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                       ),
                     ),
                   );
+                  // The tag is a display name; the page needs the exact city to disambiguate it
+                  // from same-named barangays elsewhere.
+                  const cityForBarangay = (name: string): string | undefined => {
+                    const wanted = cleanBarangayName(name);
+                    for (const area of outage.affectedAreas) {
+                      for (const barangay of area.barangays) {
+                        if (cleanBarangayName(barangay.name) === wanted && barangay.city) {
+                          return barangay.city;
+                        }
+                      }
+                    }
+                    return outage.city ?? cities[0];
+                  };
                   const favorite = outageHasFavorite(outage, city);
                   const timeRange = [localTime(outage.startsAt ?? null, now), localTime(outage.endsAt ?? null, now)]
                     .filter((t) => t !== 'unknown time')
@@ -840,12 +854,24 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
                               {allBarangays.map((b) => {
                                 const key = cleanBarangayName(b);
                                 const pinned = isFavorited('barangay', key);
+                                const tagCity = cityForBarangay(b);
                                 return (
                                   <span
                                     key={b}
                                     className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-700 text-lg md:text-xl font-medium px-4 py-2 rounded-lg"
                                   >
-                                    Brgy. {b}
+                                    {tagCity ? (
+                                      <Link
+                                        href={`/barangay/${barangaySlug(b, tagCity)}${
+                                          sourceParam === 'fixtures' ? '?source=fixtures' : ''
+                                        }`}
+                                        className="rounded hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                      >
+                                        Brgy. {b}
+                                      </Link>
+                                    ) : (
+                                      <>Brgy. {b}</>
+                                    )}
                                     <button
                                       type="button"
                                       aria-label={pinned ? `Unpin ${b}` : `Pin ${b}`}
