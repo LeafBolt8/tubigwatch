@@ -239,3 +239,29 @@ test('provider filter and URL state work together', async ({ page }) => {
   await page.getByRole('button', { name: /^All Providers$/ }).click();
   await expect(page).not.toHaveURL(/provider=/);
 });
+
+test('status filter persists after reload', async ({ page }) => {
+  // 1. Load with the status=active param already in the URL
+  await page.goto('/?source=fixtures&status=active');
+
+  // 2. The "Active" pill should be selected
+  const activePill = page.getByRole('button', { name: /^Active/ });
+  await expect(activePill).toHaveClass(/bg-white/);
+
+  // 3. Every visible card should have an ACTIVE badge
+  await expect(page.getByRole('article').first()).toBeVisible();
+  const cards = page.getByRole('article');
+  const count = await cards.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (let i = 0; i < count; i += 1) {
+    await expect(cards.nth(i).locator('span', { hasText: /^ACTIVE$/ })).toBeVisible();
+    await expect(cards.nth(i).locator('span', { hasText: /^SCHEDULED$/ })).toBeHidden();
+  }
+
+  // 4. Reload and verify state persists — both the pill and the filtered cards
+  await page.reload();
+  await expect(activePill).toHaveClass(/bg-white/);
+  await expect(page.getByRole('article').first()).toBeVisible();
+  await expect(page.locator('article span', { hasText: /^SCHEDULED$/ })).toHaveCount(0);
+});
