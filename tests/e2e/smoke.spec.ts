@@ -12,6 +12,10 @@ test('fixtures mode renders the outage summary and at least one card', async ({ 
   await page.waitForSelector('role=article', { state: 'attached' });
   await expect(page.getByRole('button', { name: /^All\s+\d+$/ })).toBeVisible();
   await expect(page.getByRole('article').first()).toBeVisible();
+
+  // Fixtures are relative to load time, so at least one row must still resolve to active. If a
+  // clock change pushed every fixture into the future, this badge would disappear.
+  await expect(page.locator('span', { hasText: /^ACTIVE$/ }).first()).toBeVisible();
 });
 
 test('city pin button is focusable and has a visible focus ring', async ({ page }) => {
