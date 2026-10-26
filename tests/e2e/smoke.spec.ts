@@ -265,3 +265,25 @@ test('status filter persists after reload', async ({ page }) => {
   await expect(page.getByRole('article').first()).toBeVisible();
   await expect(page.locator('article span', { hasText: /^SCHEDULED$/ })).toHaveCount(0);
 });
+
+test('search query persists after reload and filters cards', async ({ page }) => {
+  // 1. Load with a search query
+  await page.goto('/?source=fixtures&q=Kalusugan');
+
+  // 2. The search input should have the value
+  const searchInput = page.getByPlaceholder(/Search by city/);
+  await expect(searchInput).toHaveValue('Kalusugan');
+
+  // 3. Only cards containing Kalusugan should be visible
+  await expect(page.getByRole('article').first()).toBeVisible();
+  const cards = page.getByRole('article');
+  const count = await cards.count();
+  expect(count).toBeGreaterThan(0);
+  expect(count).toBeLessThan(4);
+
+  // 4. Reload and verify persistence
+  await page.reload();
+  await expect(searchInput).toHaveValue('Kalusugan');
+  const countAfter = await page.getByRole('article').count();
+  expect(countAfter).toBe(count);
+});
