@@ -155,9 +155,15 @@ test('every city with affected barangays gets a pin', async ({ page }) => {
 
 test('filter pills correctly filter the dashboard cards', async ({ page }) => {
   await page.goto('/?source=fixtures');
+  await expect(page.getByRole('article').first()).toBeVisible();
 
-  // Click the Active filter
-  await page.getByRole('button', { name: /^Active/ }).click();
+  // Click the Active filter. The server HTML is interactive only after hydration, and a click
+  // that lands before it is silently lost, so retry until the URL reflects the filter.
+  const activePill = page.getByRole('button', { name: /^Active/ });
+  await expect(async () => {
+    await activePill.click();
+    await expect(page).toHaveURL(/status=active/);
+  }).toPass({ timeout: 10_000 });
 
   // Every article card should have an ACTIVE badge
   const articles = page.getByRole('article');
@@ -180,4 +186,42 @@ test('filter pills correctly filter the dashboard cards', async ({ page }) => {
     await expect(card.locator('span', { hasText: /^SCHEDULED$/ })).toBeVisible();
     await expect(card.locator('span', { hasText: /^ACTIVE$/ })).toBeHidden();
   }
+});
+
+test('provider filter and URL state work together', async ({ page }) => {
+  // 1. Load the dashboard (streamed content is not guaranteed to be painted when goto resolves)
+  await page.goto('/?source=fixtures');
+  await expect(page.getByRole('article').first()).toBeVisible();
+  const articlesBefore = await page.getByRole('article').count();
+  expect(articlesBefore).toBeGreaterThan(0);
+
+  // 2. Click "Maynilad". Retried for the same hydration reason as the status pills.
+  const mayniladPill = page.getByRole('button', { name: /^Maynilad$/ });
+  await expect(async () => {
+    await mayniladPill.click();
+    await expect(page).toHaveURL(/provider=maynilad/);
+  }).toPass({ timeout: 10_000 });
+
+  // 4. Every remaining card should be Maynilad
+  const mayniladArticles = page.getByRole('article');
+  const mayniladCount = await mayniladArticles.count();
+  expect(mayniladCount).toBeGreaterThan(0);
+  for (let i = 0; i < mayniladCount; i += 1) {
+    await expect(mayniladArticles.nth(i).locator('span', { hasText: /^Maynilad$/ })).toBeVisible();
+    await expect(
+      mayniladArticles.nth(i).locator('span', { hasText: /^Manila Water$/ }),
+    ).toBeHidden();
+  }
+
+  // 5. Reload the page — state should persist from URL
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Maynilad$/ })).toHaveClass(/bg-white/);
+
+  // 6. Click "Manila Water"
+  await page.getByRole('button', { name: /^Manila Water$/ }).click();
+  await expect(page).toHaveURL(/provider=manila-water/);
+
+  // 7. Click "All Providers" — URL should clear the param
+  await page.getByRole('button', { name: /^All Providers$/ }).click();
+  await expect(page).not.toHaveURL(/provider=/);
 });
