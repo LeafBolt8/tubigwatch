@@ -97,7 +97,7 @@ export default async function MapPage(props: { searchParams: Promise<Record<stri
           <div className="flex items-center gap-4">
             <span className="text-sm text-zinc-500 font-medium hidden md:block">{sourceLine}</span>
             <Link
-              href="/"
+              href={isFixtures ? '/?source=fixtures' : '/'}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-base font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <MapIcon className="w-5 h-5" /> Back to Dashboard

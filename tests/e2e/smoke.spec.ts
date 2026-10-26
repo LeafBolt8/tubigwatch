@@ -313,3 +313,27 @@ test('city heading opens the city page in the current data mode', async ({ page 
   await page.goto('/city/las-pinas?source=fixtures');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Las Piñas');
 });
+
+test('map centers on city coordinates when hand-off is present', async ({ page }) => {
+  // Quezon City coordinates from CITY_COORDS: [14.676, 121.0437]
+  await page.goto('/map?city=Quezon%20City&source=fixtures');
+  const mapContainer = page.locator('.leaflet-container');
+  await expect(mapContainer).toBeVisible();
+
+  // The reporter publishes the live Leaflet centre; poll until the view has settled.
+  await expect
+    .poll(async () => {
+      const raw = await mapContainer.getAttribute('data-center');
+      if (!raw) return false;
+      const [lat, lng] = raw.split(',').map(Number);
+      if (lat === undefined || lng === undefined) return false;
+      return Math.abs(lat - 14.676) < 0.01 && Math.abs(lng - 121.0437) < 0.01;
+    })
+    .toBe(true);
+
+  await expect(mapContainer).toHaveAttribute('data-zoom', '13');
+
+  // The back link must not silently drop fixtures mode.
+  await page.getByRole('link', { name: 'Back to Dashboard' }).click();
+  await expect(page).toHaveURL(/\/\?source=fixtures$/);
+});

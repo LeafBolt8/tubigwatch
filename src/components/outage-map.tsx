@@ -31,6 +31,31 @@ function MapRecenter({ center }: { center: [number, number] }) {
   return null;
 }
 
+/**
+ * Publishes the live view on the container so tests can verify a city hand-off landed, and so a
+ * debugging session can read the current centre from the DOM instead of guessing.
+ */
+function MapViewReporter() {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    const publish = () => {
+      const center = map.getCenter();
+      container.dataset.center = `${center.lat},${center.lng}`;
+      container.dataset.zoom = String(map.getZoom());
+    };
+
+    publish();
+    map.on('moveend zoomend', publish);
+    return () => {
+      map.off('moveend zoomend', publish);
+    };
+  }, [map]);
+
+  return null;
+}
+
 type BarangayProperties = {
   /** Barangay name, e.g. "Kalusugan". */
   ADM4_EN: string;
@@ -333,6 +358,7 @@ export default function OutageMap({
         className="h-[70vh] min-h-[600px] w-full rounded-2xl border border-slate-200 shadow-sm z-0"
       >
         <MapRecenter center={mapCenter} />
+        <MapViewReporter />
         <TileLayer
           attribution='Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
