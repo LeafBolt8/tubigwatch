@@ -90,12 +90,11 @@ test('clicking a map pin navigates to the filtered dashboard', async ({ page }) 
   await page.goto('/map?source=fixtures');
 
   // 2. Wait for the map and a pin to load
-  const pin = page.locator('.custom-city-pin').first();
+  const pin = page.locator('.custom-city-pin [data-city]').first();
   await expect(pin).toBeVisible();
 
-  // 3. Get the specific city name from the pin's title (e.g., "Quezon City: 1 outage")
-  const pinTitle = await pin.getAttribute('title');
-  const expectedCity = pinTitle?.split(':')[0]?.trim();
+  // 3. Read the city name off the pin itself, independent of the popup/tooltip wording.
+  const expectedCity = await pin.getAttribute('data-city');
   expect(expectedCity).toBeTruthy();
 
   // 4. Click the pin to open the popup

@@ -74,18 +74,17 @@ const SCHEDULED_STYLE: PathOptions = {
  * pin gives a resident something to aim at; the polygons still carry the exact boundary once they
  * zoom in. The pin colour mirrors the worst advisory in that city.
  */
-const ACTIVE_CITY_ICON = L.divIcon({
-  className: 'custom-city-pin',
-  html: '<div class="w-5 h-5 rounded-full border-2 border-white bg-red-500 shadow-md transition-transform hover:scale-110"></div>',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
-const SCHEDULED_CITY_ICON = L.divIcon({
-  className: 'custom-city-pin',
-  html: '<div class="w-5 h-5 rounded-full border-2 border-white bg-amber-500 shadow-md transition-transform hover:scale-110"></div>',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
+function cityPinIcon(city: string, hasActive: boolean) {
+  return L.divIcon({
+    className: 'custom-city-pin',
+    // `data-city` carries the city name for tests and tooling; the visible pin dot is inside it.
+    html: `<div data-city="${city}" class="w-5 h-5 rounded-full border-2 border-white ${
+      hasActive ? 'bg-red-500' : 'bg-amber-500'
+    } shadow-md transition-transform hover:scale-110"></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+}
 // Boundaries carry no advisory: faint outlines give the map shape without competing for attention.
 const NEUTRAL_STYLE: PathOptions = {
   fillColor: '#94a3b8',
@@ -340,7 +339,7 @@ export default function OutageMap({ outages, statusFilter, providerFilter }: Out
             <Marker
               key={cityKey(city)}
               position={coords}
-              icon={hasActive ? ACTIVE_CITY_ICON : SCHEDULED_CITY_ICON}
+              icon={cityPinIcon(city, hasActive)}
               title={label}
             >
               <Popup>
