@@ -75,12 +75,11 @@ const SCHEDULED_STYLE: PathOptions = {
  * zoom in. The pin colour mirrors the worst advisory in that city.
  */
 function cityPinIcon(city: string, hasActive: boolean) {
+  const pinColor = hasActive ? 'bg-red-500' : 'bg-amber-500';
   return L.divIcon({
     className: 'custom-city-pin',
     // `data-city` carries the city name for tests and tooling; the visible pin dot is inside it.
-    html: `<div data-city="${city}" class="w-5 h-5 rounded-full border-2 border-white ${
-      hasActive ? 'bg-red-500' : 'bg-amber-500'
-    } shadow-md transition-transform hover:scale-110"></div>`,
+    html: `<div data-city="${escapeHtml(city)}" class="${pinColor} w-5 h-5 rounded-full border-2 border-white shadow-md transition-transform hover:scale-110"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
   });

@@ -112,3 +112,42 @@ test('clicking a map pin navigates to the filtered dashboard', async ({ page }) 
   const cityHeading = page.locator('h2').first();
   await expect(cityHeading).toContainText(expectedCity!);
 });
+
+test('every city with affected barangays gets a pin', async ({ page }) => {
+  await page.goto('/map?source=fixtures');
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+
+  // The text list proves the map has something to show; a pin should exist for it too.
+  const affectedHeading = page.getByRole('heading', { name: /Affected Barangays \(\d+\)/ });
+  await expect(affectedHeading).toBeVisible();
+
+  const pinCount = await page.locator('.custom-city-pin').count();
+  expect(pinCount).toBeGreaterThanOrEqual(1);
+
+  // Every rendered pin must carry a city name the navigation link can use.
+  const pins = page.locator('.custom-city-pin [data-city]');
+  const labelledPinCount = await pins.count();
+  for (let i = 0; i < labelledPinCount; i += 1) {
+    const city = await pins.nth(i).getAttribute('data-city');
+    expect(city).toBeTruthy();
+  }
+
+  const pinCities = new Set(
+    await pins.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-city')).filter((city): city is string => !!city),
+    ),
+  );
+
+  // The list renders each entry as "<barangay>, <city>", so the trailing segment is the city.
+  const listedCities = (
+    await page
+      .getByRole('region', { name: /Affected Barangays/ })
+      .getByRole('listitem')
+      .allTextContents()
+  ).map((entry) => entry.split(',').pop()?.trim() ?? '');
+
+  expect(listedCities.length).toBeGreaterThan(0);
+  for (const city of listedCities) {
+    expect(pinCities.has(city)).toBe(true);
+  }
+});
