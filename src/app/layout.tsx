@@ -17,6 +17,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Required so the generated OG image routes resolve to absolute public URLs instead of localhost.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://tubigwatch.vercel.app'),
   title: 'TubigWatch',
   description: 'Metro Manila water outage tracker',
   manifest: '/manifest.json',

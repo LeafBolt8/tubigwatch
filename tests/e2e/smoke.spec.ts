@@ -391,6 +391,40 @@ test('barangay page and map hand-off resolve the right city', async ({ page }) =
     .toBe(true);
 });
 
+test('city and barangay pages expose generated OG images', async ({ page }) => {
+  await page.goto('/city/makati?source=fixtures');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    'content',
+    /^https:\/\/tubigwatch\.vercel\.app\/city\/makati\/opengraph-image/,
+  );
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+    'content',
+    /^https:\/\/tubigwatch\.vercel\.app\/city\/makati\/opengraph-image/,
+  );
+
+  const cityImage = await page.request.get('/city/makati/opengraph-image');
+  expect(cityImage.status()).toBe(200);
+  expect(cityImage.headers()['content-type']).toContain('image/png');
+  const cityBytes = await cityImage.body();
+  expect(cityBytes.length).toBeGreaterThan(1000);
+  expect(cityBytes.subarray(1, 4).toString()).toBe('PNG');
+
+  await page.goto('/barangay/kalusugan-quezon-city?source=fixtures');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    'content',
+    /^https:\/\/tubigwatch\.vercel\.app\/barangay\/kalusugan-quezon-city\/opengraph-image/,
+  );
+
+  const barangayImage = await page.request.get(
+    '/barangay/kalusugan-quezon-city/opengraph-image',
+  );
+  expect(barangayImage.status()).toBe(200);
+  expect(barangayImage.headers()['content-type']).toContain('image/png');
+  const barangayBytes = await barangayImage.body();
+  expect(barangayBytes.length).toBeGreaterThan(1000);
+  expect(barangayBytes.subarray(1, 4).toString()).toBe('PNG');
+});
+
 test('sitemap and robots are served', async ({ page }) => {
   const sitemap = await page.request.get('/sitemap.xml');
   expect(sitemap.status()).toBe(200);

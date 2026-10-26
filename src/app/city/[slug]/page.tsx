@@ -9,16 +9,14 @@ import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { cityKey } from '@/lib/utils/barangay-geo';
+import { canonicalCityName } from '@/lib/utils/city-name';
 import { computeStatus } from '@/lib/utils/outage-status';
 import { CITY_COORDS } from '@/lib/utils/geo';
-import { deslugify, slugify } from '@/lib/utils/slugify';
+import { deslugify } from '@/lib/utils/slugify';
 
 export const maxDuration = 300;
 const DEV = process.env.NODE_ENV !== 'production';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tubigwatch.vercel.app';
-// The repository logo is the only social image available; declare its real size rather than the
-// 1200x630 ideal so crawlers crop it correctly.
-const SOCIAL_IMAGE = { width: 2752, height: 1536 };
 
 type CityPageProps = {
   params: Promise<{ slug: string }>;
@@ -37,17 +35,6 @@ const timeFormatter = new Intl.DateTimeFormat('en-PH', {
   minute: '2-digit',
   hour12: true,
 });
-
-/**
- * Recovers the canonical label for a slug from a known list before falling back to title casing.
- * "las-pinas" must render as "Las Piñas", not "Las Pinas" — the slug itself cannot carry the ñ.
- */
-function canonicalCityName(slug: string, knownNames: Iterable<string> = Object.keys(CITY_COORDS)): string | null {
-  for (const name of knownNames) {
-    if (slugify(name) === slug) return name;
-  }
-  return null;
-}
 
 function cityNamesIn(outages: Outage[]): string[] {
   const names = new Set<string>();
@@ -91,19 +78,11 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
       url: canonicalUrl,
       siteName: 'TubigWatch',
       type: 'website',
-      images: [
-        {
-          url: `${SITE_URL}/logo.jpg`,
-          ...SOCIAL_IMAGE,
-          alt: `Water outages in ${cityName}`,
-        },
-      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [`${SITE_URL}/logo.jpg`],
     },
   };
 }
