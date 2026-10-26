@@ -305,6 +305,18 @@ test('city heading opens the city page in the current data mode', async ({ page 
 
   await expect(page).toHaveURL(/\/city\/[a-z-]+\?source=fixtures$/);
   await expect(page).toHaveTitle(/Water Outages in .+ \| TubigWatch/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    /\/city\/[a-z-]+$/,
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    'content',
+    /Water Outages in .+ \| TubigWatch/,
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    'content',
+    'summary_large_image',
+  );
   await expect(page.getByRole('heading', { level: 1 })).toContainText(cityName!);
   await expect(page.getByRole('article').first()).toBeVisible();
   await expect(page.getByText('Data mode: fixtures (not live)')).toBeVisible();
@@ -351,6 +363,14 @@ test('barangay page and map hand-off resolve the right city', async ({ page }) =
 
   await expect(page).toHaveURL(/\/barangay\/kalusugan-quezon-city\?source=fixtures$/);
   await expect(page).toHaveTitle(/Water Outages in Kalusugan, Quezon City \| TubigWatch/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    /\/barangay\/kalusugan-quezon-city$/,
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    'content',
+    /\/barangay\/kalusugan-quezon-city$/,
+  );
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Kalusugan');
   await expect(page.getByRole('article').first()).toBeVisible();
 

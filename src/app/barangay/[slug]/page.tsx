@@ -15,6 +15,10 @@ import { deslugify } from '@/lib/utils/slugify';
 
 export const maxDuration = 300;
 const DEV = process.env.NODE_ENV !== 'production';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tubigwatch.vercel.app';
+// The repository logo is the only social image available; declare its real size rather than the
+// 1200x630 ideal so crawlers crop it correctly.
+const SOCIAL_IMAGE = { width: 2752, height: 1536 };
 
 type BarangayPageProps = {
   params: Promise<{ slug: string }>;
@@ -74,10 +78,34 @@ export async function generateMetadata({ params, searchParams }: BarangayPagePro
   const outages = isFixtures ? outageFixtures : (await getCachedGeminiOutages()).outages;
   const location = findBarangayBySlug(slug, outages);
   const label = location ? `${location.name}, ${location.city}` : deslugify(slug);
+  const title = `Water Outages in ${label} | TubigWatch`;
+  const description = `Live water service advisories affecting ${label}, Metro Manila. Track Maynilad and Manila Water interruptions in real time.`;
+  const canonicalUrl = `${SITE_URL}/barangay/${slug}`;
 
   return {
-    title: `Water Outages in ${label} | TubigWatch`,
-    description: `Water service advisories affecting ${label}, Metro Manila. Track Maynilad and Manila Water interruptions for this barangay.`,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: 'TubigWatch',
+      type: 'website',
+      images: [
+        {
+          url: `${SITE_URL}/logo.jpg`,
+          ...SOCIAL_IMAGE,
+          alt: `Water outages in ${location?.name ?? label}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${SITE_URL}/logo.jpg`],
+    },
   };
 }
 
