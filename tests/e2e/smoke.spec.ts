@@ -221,7 +221,21 @@ test('provider filter and URL state work together', async ({ page }) => {
   await page.getByRole('button', { name: /^Manila Water$/ }).click();
   await expect(page).toHaveURL(/provider=manila-water/);
 
-  // 7. Click "All Providers" — URL should clear the param
+  // 7. Assert the cards actually changed to Manila Water
+  const mwArticles = page.getByRole('article');
+  // Wait for the DOM to swap before counting, or the snapshot can still hold the Maynilad card.
+  await expect(
+    mwArticles.first().locator('span', { hasText: /^Manila Water$/ }),
+  ).toBeVisible();
+  const mwCount = await mwArticles.count();
+  expect(mwCount).toBeGreaterThan(0);
+
+  for (let i = 0; i < mwCount; i += 1) {
+    await expect(mwArticles.nth(i).locator('span', { hasText: /^Manila Water$/ })).toBeVisible();
+    await expect(mwArticles.nth(i).locator('span', { hasText: /^Maynilad$/ })).toBeHidden();
+  }
+
+  // 8. Click "All Providers" — URL should clear the param
   await page.getByRole('button', { name: /^All Providers$/ }).click();
   await expect(page).not.toHaveURL(/provider=/);
 });
