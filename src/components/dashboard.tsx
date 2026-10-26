@@ -564,7 +564,7 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             <EnablePush />
 
             <Link
-              href="/map"
+              href={sourceParam === 'fixtures' ? '/map?source=fixtures' : '/map'}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <MapIcon className="h-4 w-4" /> View Map
