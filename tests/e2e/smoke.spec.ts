@@ -370,3 +370,19 @@ test('barangay page and map hand-off resolve the right city', async ({ page }) =
     })
     .toBe(true);
 });
+
+test('sitemap and robots are served', async ({ page }) => {
+  const sitemap = await page.request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  expect(sitemap.headers()['content-type']).toContain('xml');
+  const sitemapXml = await sitemap.text();
+  expect(sitemapXml).toContain('<urlset');
+  expect(sitemapXml).toContain('/map</loc>');
+
+  const robots = await page.request.get('/robots.txt');
+  expect(robots.status()).toBe(200);
+  const robotsText = await robots.text();
+  expect(robotsText).toContain('Disallow: /api/');
+  expect(robotsText).toContain('Disallow: /admin');
+  expect(robotsText).toContain('Sitemap: https://');
+});
