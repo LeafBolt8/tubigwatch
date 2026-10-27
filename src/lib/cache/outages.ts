@@ -61,7 +61,7 @@ export type GeminiCachedOutagesResult = {
   fetchedAt: number;
 };
 
-export const getCachedGeminiOutages = unstable_cache(
+const getCachedGeminiSnapshot = unstable_cache(
   async (): Promise<GeminiCachedOutagesResult> => {
     try {
       const data = await redis.get<{ outages: Outage[]; timestamp: number }>(
@@ -110,3 +110,23 @@ export const getCachedGeminiOutages = unstable_cache(
   ['gemini-outages-redis-v3'],
   { revalidate: 3600, tags: ['gemini-outages-redis-v3'] },
 );
+
+/**
+ * Next's Data Cache stores the wrapped result as JSON, so the Date fields came back as strings
+ * even after the Redis read revived them. The city page sorts with `getTime()` and formats with
+ * `Intl.DateTimeFormat`, and both throw on a string, so re-parse at this boundary.
+ */
+export async function getCachedGeminiOutages(): Promise<GeminiCachedOutagesResult> {
+  const snapshot = await getCachedGeminiSnapshot();
+  const parsed = OutageSchema.array().safeParse(snapshot.outages);
+
+  if (!parsed.success) {
+    return {
+      ...snapshot,
+      outages: [],
+      errors: [...snapshot.errors, 'Stored outage data could not be read.'],
+    };
+  }
+
+  return { ...snapshot, outages: parsed.data };
+}

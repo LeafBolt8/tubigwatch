@@ -7,7 +7,11 @@ const { redisGet, readManualOutages } = vi.hoisted(() => ({
   readManualOutages: vi.fn(),
 }));
 
-vi.mock('next/cache', () => ({ unstable_cache: (fn: unknown) => fn }));
+// The real Data Cache persists the wrapped result as JSON, which turns Dates into strings. Mirror
+// that here so the exported reader is tested across the same boundary the city page crosses.
+vi.mock('next/cache', () => ({
+  unstable_cache: (fn: () => unknown) => async () => JSON.parse(JSON.stringify(await fn())),
+}));
 vi.mock('@upstash/redis', () => ({
   Redis: class {
     get = redisGet;
