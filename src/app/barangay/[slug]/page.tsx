@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
+import OutageCard from '@/components/outage-card';
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
@@ -22,12 +23,6 @@ type BarangayPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const dateFormatter = new Intl.DateTimeFormat('en-PH', {
-  timeZone: 'Asia/Manila',
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
 const STATUS_ORDER: Record<OutageStatus, number> = {
   active: 0,
   scheduled: 1,
@@ -35,34 +30,6 @@ const STATUS_ORDER: Record<OutageStatus, number> = {
   restored: 3,
   cancelled: 4,
 };
-
-function badgeClasses(status: OutageStatus): string {
-  switch (status) {
-    case 'active':
-      return 'bg-red-50 text-red-700 border border-red-200';
-    case 'scheduled':
-      return 'bg-amber-50 text-amber-700 border border-amber-200';
-    case 'restored':
-      return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-    case 'cancelled':
-    case 'unknown':
-      return 'bg-zinc-100 text-zinc-700 border border-zinc-300';
-  }
-}
-
-function accentClass(status: OutageStatus): string {
-  if (status === 'active') return 'border-l-red-500';
-  if (status === 'scheduled') return 'border-l-amber-500';
-  if (status === 'restored') return 'border-l-emerald-500';
-  return 'border-l-zinc-400';
-}
-
-function timeframe(outage: Outage): string {
-  const start = dateFormatter.format(outage.startsAt);
-  return outage.endsAt
-    ? `${start} – ${dateFormatter.format(outage.endsAt)}`
-    : `${start} – restoration time not provided`;
-}
 
 function fixturesFallbackFor(searchParams: Record<string, string | string[] | undefined>): boolean {
   const source = typeof searchParams.source === 'string' ? searchParams.source : undefined;
@@ -206,32 +173,8 @@ export default async function BarangayPage(props: BarangayPageProps) {
             </p>
           </div>
         ) : (
-          entries.map(({ outage, status }) => (
-            <article
-              key={outage.id}
-              className={`bg-white rounded-2xl shadow-sm border border-slate-200 border-l-[6px] p-6 md:p-8 ${accentClass(
-                status,
-              )}`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-base font-bold uppercase tracking-wider ${badgeClasses(
-                      status,
-                    )}`}
-                  >
-                    {status}
-                  </span>
-                  <span className="px-3 py-1.5 rounded-lg text-sm font-semibold text-zinc-600 bg-zinc-100">
-                    {outage.concessionaire === 'manila-water' ? 'Manila Water' : 'Maynilad'}
-                  </span>
-                </div>
-                <span className="text-base font-medium text-zinc-600 tabular-nums">
-                  {timeframe(outage)}
-                </span>
-              </div>
-              <h2 className="mt-3 text-2xl font-bold text-zinc-900">{outage.reason}</h2>
-            </article>
+          entries.map(({ outage }) => (
+            <OutageCard key={outage.id} outage={outage} now={now} />
           ))
         )}
       </section>

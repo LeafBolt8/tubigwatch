@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
 import EnablePush from '@/components/enable-push';
+import OutageCard from '@/components/outage-card';
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
@@ -22,12 +23,6 @@ type CityPageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-const dateFormatter = new Intl.DateTimeFormat('en-PH', {
-  timeZone: 'Asia/Manila',
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
 
 const timeFormatter = new Intl.DateTimeFormat('en-PH', {
   timeZone: 'Asia/Manila',
@@ -48,18 +43,13 @@ function cityNamesIn(outages: Outage[]): string[] {
   return [...names];
 }
 
-function badgeClasses(status: Extract<OutageStatus, 'active' | 'scheduled'>): string {
-  return status === 'active'
-    ? 'bg-red-50 text-red-700 border border-red-200'
-    : 'bg-amber-50 text-amber-700 border border-amber-200';
-}
-
-function timeframe(outage: Outage): string {
-  const start = dateFormatter.format(outage.startsAt);
-  return outage.endsAt
-    ? `${start} – ${dateFormatter.format(outage.endsAt)}`
-    : `${start} – restoration time not provided`;
-}
+const STATUS_ORDER: Record<OutageStatus, number> = {
+  active: 0,
+  scheduled: 1,
+  unknown: 2,
+  restored: 3,
+  cancelled: 4,
+};
 
 export async function generateMetadata({ params }: CityPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -122,16 +112,16 @@ export default async function CityPage(props: CityPageProps) {
         ) || (outage.city !== undefined && cityKey(outage.city) === wantedCity),
     )
     .map((outage) => ({ outage, status: computeStatus(outage, now) }))
-    .filter(
-      (
-        entry,
-      ): entry is { outage: Outage; status: Extract<OutageStatus, 'active' | 'scheduled'> } =>
-        entry.status === 'active' || entry.status === 'scheduled',
-    )
     .sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
+      if (STATUS_ORDER[a.status] !== STATUS_ORDER[b.status]) {
+        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      }
       return a.outage.startsAt.getTime() - b.outage.startsAt.getTime();
     });
+
+  const currentCount = cityOutages.filter(
+    (entry) => entry.status === 'active' || entry.status === 'scheduled',
+  ).length;
 
   const fixturesParam = isFixtures ? '&source=fixtures' : '';
   const mapHref = `/map?city=${encodeURIComponent(cityName)}${fixturesParam}`;
@@ -154,12 +144,14 @@ export default async function CityPage(props: CityPageProps) {
               {cityName}
             </h1>
             <p className="mt-2 text-xl text-zinc-600 leading-relaxed">
-              {cityOutages.length === 0
+              {currentCount === 0
                 ? sourceErrors.length > 0
                   ? 'Current service status could not be confirmed.'
-                  : 'No active or scheduled advisories reported.'
-                : `${cityOutages.length} active or scheduled ${
-                    cityOutages.length === 1 ? 'advisory' : 'advisories'
+                  : cityOutages.length > 0
+                    ? 'No active or scheduled advisories; past advisories are listed below.'
+                    : 'No active or scheduled advisories reported.'
+                : `${currentCount} active or scheduled ${
+                    currentCount === 1 ? 'advisory' : 'advisories'
                   }.`}
             </p>
             <p className="mt-1 text-sm font-medium text-zinc-500">
@@ -203,32 +195,8 @@ export default async function CityPage(props: CityPageProps) {
             </p>
           </div>
         ) : (
-          cityOutages.map(({ outage, status }) => (
-            <article
-              key={outage.id}
-              className={`bg-white rounded-2xl shadow-sm border border-slate-200 border-l-[6px] p-6 md:p-8 ${
-                status === 'active' ? 'border-l-red-500' : 'border-l-amber-500'
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-base font-bold uppercase tracking-wider ${badgeClasses(
-                      status,
-                    )}`}
-                  >
-                    {status}
-                  </span>
-                  <span className="px-3 py-1.5 rounded-lg text-sm font-semibold text-zinc-600 bg-zinc-100">
-                    {outage.concessionaire === 'manila-water' ? 'Manila Water' : 'Maynilad'}
-                  </span>
-                </div>
-                <span className="text-base font-medium text-zinc-600 tabular-nums">
-                  {timeframe(outage)}
-                </span>
-              </div>
-              <h2 className="mt-3 text-2xl font-bold text-zinc-900">{outage.reason}</h2>
-            </article>
+          cityOutages.map(({ outage }) => (
+            <OutageCard key={outage.id} outage={outage} now={now} />
           ))
         )}
       </section>
