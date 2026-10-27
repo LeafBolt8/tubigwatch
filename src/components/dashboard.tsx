@@ -4,7 +4,7 @@ import type { Outage } from '@/lib/schemas/outage';
 import type { OutageStatus } from '@/lib/schemas/outage-status';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowRight, Copy, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
+import { Copy, Info, Map as MapIcon, MapPin, Pin, Search, Share2, X } from 'lucide-react';
 
 import EnablePush from '@/components/enable-push';
 import LiveCountdown from '@/components/live-countdown';
@@ -719,10 +719,11 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
               >
                 <Link
                   href={`/city/${slugify(city)}${sourceParam === 'fixtures' ? '?source=fixtures' : ''}`}
+                  title="View city details"
                   className="inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   {city.split(',')[0]?.trim() || 'Unknown'}
-                  <ArrowRight className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                  <Info className="w-5 h-5 text-blue-600 hover:text-blue-800 transition-colors" aria-hidden="true" />
                 </Link>
                 <button
                   type="button"
