@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis';
 import webpush from 'web-push';
 
+import { archiveOutages } from '../src/lib/cache/history';
 import { fetchMayniladOutages } from '../src/lib/ingestion/maynilad';
 import { fetchManilaWaterOutages } from '../src/lib/ingestion/manila-water';
 import { normalizeOutages } from '../src/lib/utils/normalize-outages';
@@ -179,6 +180,7 @@ async function main() {
       timestamp: Date.now(),
     });
     console.log(`SUCCESS: Saved ${normalized.length} outages to Redis.`);
+    await archiveOutages(merged);
 
     try {
       await notifyNewOutages(newOutages);

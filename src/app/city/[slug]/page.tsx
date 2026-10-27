@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Redis } from '@upstash/redis';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
 import EnablePush from '@/components/enable-push';
 import OutageCard from '@/components/outage-card';
+import OutageTrendChart from '@/components/outage-trend-chart';
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
-import type { Outage } from '@/lib/schemas/outage';
-import type { OutageStatus } from '@/lib/schemas/outage-status';
+import { OutageSchema, type Outage } from '@/lib/schemas/outage';
 import { cityKey } from '@/lib/utils/barangay-geo';
 import { canonicalCityName } from '@/lib/utils/city-name';
 import { computeStatus } from '@/lib/utils/outage-status';
@@ -31,6 +32,34 @@ const timeFormatter = new Intl.DateTimeFormat('en-PH', {
   hour12: true,
 });
 
+const longDateFormatter = new Intl.DateTimeFormat('en-PH', {
+  timeZone: 'Asia/Manila',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const shortDateFormatter = new Intl.DateTimeFormat('en-PH', {
+  timeZone: 'Asia/Manila',
+  month: 'short',
+  day: 'numeric',
+});
+
+const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+type CityDateGroup = {
+  key: string;
+  label: string;
+  chartLabel: string;
+  timestamp: number;
+  outages: Outage[];
+};
+
 function cityNamesIn(outages: Outage[]): string[] {
   const names = new Set<string>();
   for (const outage of outages) {
@@ -43,13 +72,32 @@ function cityNamesIn(outages: Outage[]): string[] {
   return [...names];
 }
 
-const STATUS_ORDER: Record<OutageStatus, number> = {
-  active: 0,
-  scheduled: 1,
-  unknown: 2,
-  restored: 3,
-  cancelled: 4,
-};
+function affectsCity(outage: Outage, wantedCity: string): boolean {
+  return (
+    outage.affectedAreas.some((area) =>
+      area.barangays.some(
+        (barangay) => barangay.city !== undefined && cityKey(barangay.city) === wantedCity,
+      ),
+    ) || (outage.city !== undefined && cityKey(outage.city) === wantedCity)
+  );
+}
+
+async function readHistoricalOutages(fallback: Outage[]): Promise<Outage[]> {
+  try {
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
+      token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '',
+    });
+    const stored = await redis.get<unknown>('historical-outages');
+    const parsed = OutageSchema.array().safeParse(stored ?? []);
+
+    if (!parsed.success || parsed.data.length === 0) return fallback;
+    return parsed.data;
+  } catch (error) {
+    console.warn('Could not read historical outages; falling back to the live snapshot.', error);
+    return fallback;
+  }
+}
 
 export async function generateMetadata({ params }: CityPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -99,29 +147,60 @@ export default async function CityPage(props: CityPageProps) {
     fetchedAt = data.fetchedAt;
   }
 
-  const cityName = canonicalCityName(slug, [...Object.keys(CITY_COORDS), ...cityNamesIn(outages)]);
+  const historySource = fixturesFallback ? outages : await readHistoricalOutages(outages);
+  const cityName = canonicalCityName(slug, [
+    ...Object.keys(CITY_COORDS),
+    ...cityNamesIn(outages),
+    ...cityNamesIn(historySource),
+  ]);
   if (!cityName) notFound();
 
   const wantedCity = cityKey(cityName);
   const now = new Date();
-  const cityOutages = outages
-    .filter(
-      (outage) =>
-        outage.affectedAreas.some((area) =>
-          area.barangays.some((barangay) => barangay.city && cityKey(barangay.city) === wantedCity),
-        ) || (outage.city !== undefined && cityKey(outage.city) === wantedCity),
-    )
-    .map((outage) => ({ outage, status: computeStatus(outage, now) }))
-    .sort((a, b) => {
-      if (STATUS_ORDER[a.status] !== STATUS_ORDER[b.status]) {
-        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-      }
-      return a.outage.startsAt.getTime() - b.outage.startsAt.getTime();
-    });
+  const cityOutages = historySource
+    .filter((outage) => affectsCity(outage, wantedCity))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
 
-  const currentCount = cityOutages.filter(
-    (entry) => entry.status === 'active' || entry.status === 'scheduled',
-  ).length;
+  const currentCount = cityOutages.filter((outage) => {
+    const status = computeStatus(outage, now);
+    return status === 'active' || status === 'scheduled';
+  }).length;
+
+  const dateGroupsByKey = new Map<string, CityDateGroup>();
+  for (const outage of cityOutages) {
+    const startsAt = new Date(outage.startsAt);
+    const timestamp = startsAt.getTime();
+    if (Number.isNaN(timestamp)) continue;
+
+    const key = dateKeyFormatter.format(startsAt);
+    const existing = dateGroupsByKey.get(key);
+    if (existing) {
+      existing.outages.push(outage);
+      existing.timestamp = Math.max(existing.timestamp, timestamp);
+      continue;
+    }
+
+    dateGroupsByKey.set(key, {
+      key,
+      label: longDateFormatter.format(startsAt),
+      chartLabel: shortDateFormatter.format(startsAt),
+      timestamp,
+      outages: [outage],
+    });
+  }
+
+  const dateGroups = Array.from(dateGroupsByKey.values()).sort(
+    (a, b) => b.timestamp - a.timestamp,
+  );
+  for (const group of dateGroups) {
+    group.outages.sort(
+      (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+    );
+  }
+
+  const chartData = [...dateGroups]
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .map((group) => ({ date: group.chartLabel, count: group.outages.length }));
 
   const fixturesParam = isFixtures ? '&source=fixtures' : '';
   const mapHref = `/map?city=${encodeURIComponent(cityName)}${fixturesParam}`;
@@ -185,8 +264,8 @@ export default async function CityPage(props: CityPageProps) {
         </div>
       )}
 
-      <section aria-label={`Water advisories affecting ${cityName}`} className="space-y-6">
-        {cityOutages.length === 0 ? (
+      <section aria-label={`Water advisories affecting ${cityName}`}>
+        {dateGroups.length === 0 ? (
           <div className="text-center py-12 px-8 bg-white rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-zinc-700 text-lg leading-relaxed">
               {sourceErrors.length > 0
@@ -195,11 +274,25 @@ export default async function CityPage(props: CityPageProps) {
             </p>
           </div>
         ) : (
-          cityOutages.map(({ outage }) => (
-            <OutageCard key={outage.id} outage={outage} now={now} />
+          dateGroups.map((group) => (
+            <div key={group.key}>
+              <div className="flex items-center gap-4 mt-10 mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 whitespace-nowrap">
+                  {group.label}
+                </h2>
+                <div className="h-px bg-slate-300 w-full"></div>
+              </div>
+              <div className="space-y-6">
+                {group.outages.map((outage) => (
+                  <OutageCard key={outage.id} outage={outage} now={now} />
+                ))}
+              </div>
+            </div>
           ))
         )}
       </section>
+
+      <OutageTrendChart data={chartData} />
     </main>
   );
 }
