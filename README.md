@@ -2,15 +2,14 @@
 
 **Live App:** [https://tubigwatch.vercel.app](https://tubigwatch.vercel.app) · **Interactive Map:** [https://tubigwatch.vercel.app/map](https://tubigwatch.vercel.app/map)
 
-TubigWatch is a high-contrast, low-bandwidth Progressive Web App (PWA) that tracks water service interruptions for Metro Manila residents. It aggregates live advisories from both Maynilad and Manila Water into a single, unified dashboard.
+TubigWatch is a high-availability, real-time water outage tracker for Metro Manila. It aggregates live advisories from both Maynilad and Manila Water into a single, unified dashboard, complete with Web Push notifications, offline PWA capabilities, and a GIS-style map with barangay-level polygons.
 
 ## 🚀 The Problem
-
-During typhoon season, water advisories are scattered across slow, mobile-hostile websites. Residents need to know instantly if their barangay is affected so they can store water. Furthermore, serverless platforms like Vercel have strict timeout limits, making it impossible to scrape 18+ pages of data on-demand.
+During typhoon season, water advisories are scattered across slow, mobile-hostile websites. Furthermore, serverless platforms like Vercel have strict timeout limits (60 seconds), making it impossible to scrape 18+ pages of data on-demand. 
 
 ## 🏗️ System Architecture
 
-We bypass serverless timeouts by offloading heavy scraping to a scheduled GitHub Action, caching the final dataset in Upstash Redis.
+To bypass serverless timeouts, TubigWatch decouples the ingestion engine from the web app. A scheduled GitHub Action scrapes the data, normalizes it, and caches the final snapshot in Upstash Redis. The Next.js app simply reads the cache.
 
 ```mermaid
 graph TD
@@ -21,8 +20,8 @@ graph TD
     D --> E
     E -->|389-Entry Barangay Dictionary| F[(Upstash Redis Cache)]
     F --> G[Next.js App on Vercel]
-    G --> H[Dashboard]
-    G --> I[Leaflet Map]
+    G --> H[Dashboard & City/Barangay Pages]
+    G --> I[Leaflet Map with GeoJSON]
     G --> J[Web Push Notifications]
     J --> K[Service Worker]
 ```
@@ -30,26 +29,34 @@ graph TD
 ## ✨ Key Features
 
 - **Resilient Data Pipeline:** Scrapes both Maynilad and Manila Water without hitting Vercel's timeout limits by using GitHub Actions to write directly to Redis.
-- **Data Normalization:** A 389-entry barangay dictionary that resolves messy data, splits multi-city strings, and cleans parsing artifacts (e.g., "Parts of Brgy. Rizal").
-- **Real-time Push Notifications:** Users can opt-in to receive browser push alerts (via VAPID) when a new outage affects their pinned cities or barangays.
-- **Personalized Favorites:** Users can "Pin" specific cities or barangays to highlight them and filter the dashboard.
-- **Interactive Map:** Color-coded pins (Red for Active, Amber for Scheduled), auto-centering based on geolocation, and shareable URL filters.
+- **Data Normalization:** A 389-entry barangay dictionary that resolves messy data, splits multi-city strings, and strips parsing artifacts.
+- **Dynamic SEO Routes:** Generates dedicated, SEO-friendly pages for every affected city (`/city/quezon-city`) and barangay (`/barangay/poblacion-makati`).
+- **Dynamic Social Cards:** Generates branded 1200x630 Open Graph images on the fly for every city and barangay page.
+- **Real-time Push Notifications:** Users can opt-in to receive Web Push alerts (via VAPID) when a new outage affects their pinned cities or barangays.
+- **Interactive GIS Map:** Replaces standard pins with actual Barangay GeoJSON polygons, colored by status (Red for active, Amber for scheduled).
 - **Offline PWA:** Service workers cache the last known state so users can access advisories even if their internet drops during a storm.
-- **Admin Override Panel:** A secure, rate-limited dashboard (`/admin`) to manually inject data into Redis if the upstream APIs break.
-- **Security Hardened:** Timing-safe password comparisons, strict CSP headers, Zod validation on write endpoints, and Upstash Redis rate-limiting.
+- **Security Hardened:** Rate-limited admin panel with timing-safe password comparisons, strict CSP headers, XSS prevention, and zero-trust Zod validation.
 
 ## 💻 Tech Stack
 
 - **Framework:** Next.js 15 (App Router), React 19
 - **Language:** TypeScript (Strict Mode)
-- **Styling:** Tailwind CSS v4 (High-contrast, accessible civic UI)
-- **Data & Scraping:** Node.js, `tsx`, custom HTML-table tokenizer
-- **Validation:** Zod (Zero-trust runtime schema validation)
-- **Database:** Upstash Redis (Caching & Subscriptions)
+- **Styling:** Tailwind CSS v4 (Custom anti-slop design system)
+- **Data & Ingestion:** Node.js, `tsx`, GitHub Actions
+- **Database:** Upstash Redis (Caching & Push Subscriptions)
+- **Mapping:** React-Leaflet, OpenStreetMap (GeoJSON polygons)
 - **Push:** Web Push API (`web-push`), VAPID
-- **Maps:** React-Leaflet, OpenStreetMap
-- **Testing:** Vitest, Playwright, Custom AST/Regex Anti-slop Guardrail
+- **Testing:** Vitest, Playwright (Desktop & Mobile viewports), Custom AST Anti-slop Guardrail
 - **CI/CD:** GitHub Actions, Vercel
+
+## 🧪 Quality Gates & Testing
+
+Every commit must pass a strict 5-gate CI pipeline:
+1. `npm run typecheck` (Strict TypeScript)
+2. `npm run lint` (ESLint + Custom Anti-slop Guardrail)
+3. `npm run test` (141 Unit Tests + Guardrail Tests)
+4. `npm run build` (Next.js Production Build)
+5. `npm run e2e` (32 Playwright Browser Tests across Desktop and Mobile)
 
 ## 🛠️ Local Development
 
@@ -66,12 +73,3 @@ npm run dev
 ```
 
 *(Note: To test the UI without hitting external APIs, visit `http://localhost:3000/?source=fixtures` to load demo data).*
-
-## 🧪 Quality Gates
-
-Every commit must pass 5 strict gates before merging:
-1. `npm run typecheck` (Strict TypeScript)
-2. `npm run lint` (ESLint + Custom Anti-slop Guardrail)
-3. `npm run test` (Vitest Unit Tests + Guardrail Tests)
-4. `npm run build` (Next.js Production Build)
-5. `npm run e2e` (Playwright Browser Tests)
