@@ -11,6 +11,18 @@ const redis = new Redis({
 const HISTORY_KEY = 'historical-outages';
 const HISTORY_LIMIT = 1000;
 
+/** Reads the archive for callers that can render it, such as the sitemap. */
+export async function getHistoricalOutages(): Promise<Outage[]> {
+  try {
+    const stored = await redis.get<unknown>(HISTORY_KEY);
+    const parsed = OutageSchema.array().safeParse(stored ?? []);
+    return parsed.success ? parsed.data : [];
+  } catch (error) {
+    console.warn('Could not read historical outages.', error);
+    return [];
+  }
+}
+
 function startsAtTime(outage: Outage): number {
   const time = new Date(outage.startsAt).getTime();
   return Number.isNaN(time) ? 0 : time;

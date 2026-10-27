@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
+import type { Outage } from '@/lib/schemas/outage';
 import { buildSitemap } from '@/lib/seo/sitemap';
 
 const BASE = 'https://example.test';
@@ -34,6 +35,32 @@ describe('buildSitemap', () => {
         `${BASE}/barangay/ususan-taguig`,
         `${BASE}/barangay/kapitolyo-pasig`,
         `${BASE}/barangay/barangay-176-caloocan`,
+      ]),
+    );
+  });
+
+  test('includes locations that only appear in the historical archive', () => {
+    const historicalOnly: Outage = {
+      ...outageFixtures[0]!,
+      id: 'historical-binangonan',
+      city: 'Binangonan, Rizal',
+      affectedAreas: [
+        {
+          barangays: [{ name: 'Tayuman', city: 'Binangonan, Rizal', province: 'Rizal' }],
+          streets: [],
+          notes: '',
+        },
+      ],
+    };
+
+    const historicalUrls = buildSitemap([], BASE, NOW, [historicalOnly]).map(
+      (entry) => entry.url,
+    );
+
+    expect(historicalUrls).toEqual(
+      expect.arrayContaining([
+        `${BASE}/city/binangonan-rizal`,
+        `${BASE}/barangay/tayuman-binangonan-rizal`,
       ]),
     );
   });

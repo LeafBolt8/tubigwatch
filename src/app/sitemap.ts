@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { getHistoricalOutages } from '@/lib/cache/history';
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
@@ -14,6 +15,7 @@ const DEV = process.env.NODE_ENV !== 'production';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let outages: Outage[] = [];
+  let historicalOutages: Outage[] = [];
 
   if (DEV && process.env.GEMINI_API_KEY === undefined) {
     outages = outageFixtures;
@@ -24,7 +26,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // An unavailable store must not take the whole sitemap down; the static routes still serve.
       outages = [];
     }
+
+    // Old city and barangay pages remain indexable after their advisories leave the live snapshot.
+    historicalOutages = await getHistoricalOutages();
   }
 
-  return buildSitemap(outages, baseUrl);
+  return buildSitemap(outages, baseUrl, new Date(), historicalOutages);
 }
