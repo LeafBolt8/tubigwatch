@@ -6,11 +6,9 @@ import { getHistoricalOutages } from '@/lib/cache/history';
 import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import type { Outage } from '@/lib/schemas/outage';
-import { cityKey } from '@/lib/utils/barangay-geo';
 import { buildCityDirectory } from '@/lib/utils/city-directory';
-import { canonicalCityName } from '@/lib/utils/city-name';
+import { canonicalCityName, citySlug } from '@/lib/utils/city-name';
 import { CITY_COORDS } from '@/lib/utils/geo';
-import { slugify } from '@/lib/utils/slugify';
 
 import CitiesDirectory, { type CityDirectoryRow } from './cities-directory';
 
@@ -72,15 +70,13 @@ export default async function CitiesPage({ searchParams }: CitiesPageProps) {
 
   const rows: CityDirectoryRow[] = [];
   for (const entry of entries) {
-    const canonical =
-      canonicalCityName(slugify(entry.city)) ??
-      canonicalCityName(cityKey(entry.city)) ??
-      canonicalCityName(slugify(entry.city), knownNames);
+    // `citySlug` is the single slug rule, so the directory link and the sitemap cannot drift.
+    const canonical = canonicalCityName(citySlug(entry.city), knownNames);
 
     // A row whose label cannot become a /city/[slug] URL would only lead to a 404.
     if (canonical === null) continue;
 
-    rows.push({ ...entry, href: `/city/${slugify(canonical)}${fixturesParam}` });
+    rows.push({ ...entry, href: `/city/${citySlug(canonical)}${fixturesParam}` });
   }
 
   const backHref = isFixtures ? '/?source=fixtures' : '/';

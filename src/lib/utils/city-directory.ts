@@ -1,6 +1,7 @@
 import type { Outage } from '@/lib/schemas/outage';
 
 import { cityKey } from './barangay-geo';
+import { isProvinceOnly, splitCityLabels } from './city-name';
 import { dedupById } from './dedup';
 import { computeStatus } from './outage-status';
 import { slugify } from './slugify';
@@ -37,15 +38,24 @@ function isUsableCityLabel(label: string): boolean {
   return trimmed !== '' && trimmed.toLowerCase() !== 'unknown';
 }
 
-/** City labels a single row touches: its own city field plus the city on every affected barangay. */
+/**
+ * City labels a single row touches: its own city field plus the city on every affected barangay,
+ * each expanded so a compound label contributes one entry per city and a province-only value
+ * contributes none.
+ */
 function cityLabelsFor(outage: Outage): string[] {
   const labels = new Set<string>();
-  if (outage.city) labels.add(outage.city.trim());
 
-  for (const area of outage.affectedAreas) {
-    for (const barangay of area.barangays) {
-      labels.add(barangay.city.trim());
+  const add = (value: string | undefined) => {
+    if (!value) return;
+    for (const label of splitCityLabels(value)) {
+      if (!isProvinceOnly(label)) labels.add(label);
     }
+  };
+
+  add(outage.city);
+  for (const area of outage.affectedAreas) {
+    for (const barangay of area.barangays) add(barangay.city);
   }
 
   return [...labels].filter(isUsableCityLabel);

@@ -42,7 +42,8 @@ describe('sitemap route', () => {
 
     expect(urls).toEqual(
       expect.arrayContaining([
-        `${SITE}/city/binangonan-rizal`,
+        // City URLs are canonical: the comma province is dropped (/city/binangonan).
+        `${SITE}/city/binangonan`,
         `${SITE}/barangay/tayuman-binangonan-rizal`,
       ]),
     );

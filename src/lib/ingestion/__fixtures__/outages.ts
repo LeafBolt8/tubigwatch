@@ -138,6 +138,32 @@ const _outageFixtures: Outage[] = [
     },
     confidence: 'inferred',
   },
+  {
+    // One row, two cities: exercises compound-label splitting plus the province suffix that must
+    // not become a city of its own.
+    id: 'manila-water-antipolo-cainta-20261020-0900',
+    concessionaire: 'manila-water',
+    status: 'active',
+    reason: 'Valve replacement along the Antipolo and Cainta boundary.',
+    startsAt: offsetDate(-3),
+    endsAt: offsetDate(3),
+    affectedAreas: [
+      {
+        barangays: [{ name: 'San Roque', city: 'Antipolo, Rizal', province: 'Rizal' }],
+        streets: ['Sumulong Highway'],
+      },
+      {
+        barangays: [{ name: 'Sto. Niño', city: 'Cainta, Rizal', province: 'Rizal' }],
+        streets: ['Ortigas Avenue Extension'],
+      },
+    ],
+    source: {
+      url: 'https://www.manilawater.com/service-updates/antipolo-cainta-20261020',
+      fetchedAt: UTC('2026-10-20T06:30:00+08:00'),
+      raw: 'Service update: Antipolo and Cainta, Rizal. Valve replacement. 09:00 to 15:00.',
+    },
+    confidence: 'official',
+  },
 ];
 
 // Runtime guard: every fixture must parse under the canonical schema. This is the same

@@ -28,6 +28,26 @@ describe('buildSitemap', () => {
     );
   });
 
+  test('keeps the exact city slug set through the citySlug refactor', () => {
+    const cityUrls = urls.filter((url) => url.includes('/city/')).sort();
+    expect(cityUrls).toEqual([
+      `${BASE}/city/antipolo`,
+      `${BASE}/city/cainta`,
+      `${BASE}/city/caloocan`,
+      `${BASE}/city/makati`,
+      `${BASE}/city/pasig`,
+      `${BASE}/city/quezon-city`,
+      `${BASE}/city/taguig`,
+    ]);
+  });
+
+  test('emits canonical slugs for compound labels and never advertises a province', () => {
+    expect(urls).toContain(`${BASE}/city/antipolo`);
+    expect(urls).toContain(`${BASE}/city/cainta`);
+    expect(urls).not.toContain(`${BASE}/city/antipolo-and-cainta`);
+    expect(urls).not.toContain(`${BASE}/city/rizal`);
+  });
+
   test('includes one URL per barangay, qualified by city', () => {
     expect(urls).toEqual(
       expect.arrayContaining([
@@ -60,7 +80,7 @@ describe('buildSitemap', () => {
 
     expect(historicalUrls).toEqual(
       expect.arrayContaining([
-        `${BASE}/city/binangonan-rizal`,
+        `${BASE}/city/binangonan`,
         `${BASE}/barangay/tayuman-binangonan-rizal`,
       ]),
     );

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { cache } from 'react';
 import { Redis } from '@upstash/redis';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
@@ -11,10 +12,14 @@ import { getCachedGeminiOutages } from '@/lib/cache/outages';
 import { outageFixtures } from '@/lib/ingestion/__fixtures__/outages';
 import { OutageSchema, type Outage } from '@/lib/schemas/outage';
 import { cityKey } from '@/lib/utils/barangay-geo';
-import { canonicalCityName } from '@/lib/utils/city-name';
+import {
+  canonicalCityName,
+  citySlug,
+  outageAffectsCity as affectsCity,
+  rawCityLabelsInOutages,
+} from '@/lib/utils/city-name';
 import { computeStatus } from '@/lib/utils/outage-status';
 import { CITY_COORDS } from '@/lib/utils/geo';
-import { deslugify } from '@/lib/utils/slugify';
 
 export const maxDuration = 300;
 const DEV = process.env.NODE_ENV !== 'production';
@@ -60,28 +65,6 @@ type CityDateGroup = {
   outages: Outage[];
 };
 
-function cityNamesIn(outages: Outage[]): string[] {
-  const names = new Set<string>();
-  for (const outage of outages) {
-    for (const area of outage.affectedAreas) {
-      for (const barangay of area.barangays) {
-        if (barangay.city) names.add(barangay.city);
-      }
-    }
-  }
-  return [...names];
-}
-
-function affectsCity(outage: Outage, wantedCity: string): boolean {
-  return (
-    outage.affectedAreas.some((area) =>
-      area.barangays.some(
-        (barangay) => barangay.city !== undefined && cityKey(barangay.city) === wantedCity,
-      ),
-    ) || (outage.city !== undefined && cityKey(outage.city) === wantedCity)
-  );
-}
-
 async function readHistoricalOutages(fallback: Outage[]): Promise<Outage[]> {
   try {
     const redis = new Redis({
@@ -99,12 +82,56 @@ async function readHistoricalOutages(fallback: Outage[]): Promise<Outage[]> {
   }
 }
 
-export async function generateMetadata({ params }: CityPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const cityName = canonicalCityName(slug) ?? deslugify(slug);
+/**
+ * One dataset read per request: generateMetadata and the page both need it, and without this each
+ * would hit Redis on its own.
+ */
+const loadCityDataset = cache(async (fixturesFallback: boolean) => {
+  let outages: Outage[];
+  let sourceErrors: string[];
+  let fetchedAt: number;
+  if (fixturesFallback) {
+    outages = outageFixtures;
+    sourceErrors = [];
+    // Fixture mode has no scrape timestamp; the header renders the data-mode label instead.
+    fetchedAt = 0;
+  } else {
+    const data = await getCachedGeminiOutages();
+    outages = data.outages;
+    sourceErrors = data.errors;
+    fetchedAt = data.fetchedAt;
+  }
+
+  const historySource = fixturesFallback ? outages : await readHistoricalOutages(outages);
+  return { outages, sourceErrors, fetchedAt, historySource };
+});
+
+function resolveCityName(slug: string, outages: Outage[], historySource: Outage[]): string | null {
+  return canonicalCityName(slug, [
+    ...Object.keys(CITY_COORDS),
+    ...rawCityLabelsInOutages(outages),
+    ...rawCityLabelsInOutages(historySource),
+  ]);
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: CityPageProps): Promise<Metadata> {
+  const [{ slug }, resolvedSearch] = await Promise.all([params, searchParams]);
+  const sourceParam =
+    typeof resolvedSearch.source === 'string' ? resolvedSearch.source : undefined;
+  const fixturesFallback =
+    sourceParam === 'fixtures' || (DEV && process.env.GEMINI_API_KEY === undefined);
+  const { outages, historySource } = await loadCityDataset(fixturesFallback);
+
+  // Resolve before the body streams: an unresolvable slug must answer a real 404, not a 200 shell.
+  const cityName = resolveCityName(slug, outages, historySource);
+  if (cityName === null) notFound();
+
   const title = `Water Outages in ${cityName} | TubigWatch`;
   const description = `Live water service advisories and scheduled maintenance for ${cityName}, Metro Manila. Track Maynilad and Manila Water outages in real time.`;
-  const canonicalUrl = `${SITE_URL}/city/${slug}`;
+  const canonicalUrl = `${SITE_URL}/city/${citySlug(cityName)}`;
 
   return {
     title,
@@ -132,28 +159,23 @@ export default async function CityPage(props: CityPageProps) {
 
   const fixturesFallback = isFixtures || (DEV && process.env.GEMINI_API_KEY === undefined);
 
-  let outages: Outage[];
-  let sourceErrors: string[];
-  let fetchedAt: number;
-  if (fixturesFallback) {
-    outages = outageFixtures;
-    sourceErrors = [];
-    // Fixture mode has no scrape timestamp; the header renders the data-mode label instead.
-    fetchedAt = 0;
-  } else {
-    const data = await getCachedGeminiOutages();
-    outages = data.outages;
-    sourceErrors = data.errors;
-    fetchedAt = data.fetchedAt;
-  }
+  const { outages, sourceErrors, fetchedAt, historySource } = await loadCityDataset(fixturesFallback);
 
-  const historySource = fixturesFallback ? outages : await readHistoricalOutages(outages);
-  const cityName = canonicalCityName(slug, [
-    ...Object.keys(CITY_COORDS),
-    ...cityNamesIn(outages),
-    ...cityNamesIn(historySource),
-  ]);
-  if (!cityName) notFound();
+  // Raw labels are part of the vocabulary so an archive-only city still resolves to a page.
+  const cityName = resolveCityName(slug, outages, historySource);
+  if (cityName === null) notFound();
+
+  // One canonical URL per city: a legacy comma slug answers 308 and keeps its query string.
+  const expectedSlug = citySlug(cityName);
+  if (slug !== expectedSlug) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (typeof value === 'string') query.set(key, value);
+      else if (Array.isArray(value)) for (const item of value) query.append(key, item);
+    }
+    const queryString = query.toString();
+    permanentRedirect(`/city/${expectedSlug}${queryString ? `?${queryString}` : ''}`);
+  }
 
   const wantedCity = cityKey(cityName);
   const now = new Date();

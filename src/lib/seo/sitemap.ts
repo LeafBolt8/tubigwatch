@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import type { Outage } from '@/lib/schemas/outage';
 import { listBarangayLocations } from '@/lib/utils/barangay-slug';
-import { slugify } from '@/lib/utils/slugify';
+import { citySlug, isProvinceOnly, splitCityLabels } from '@/lib/utils/city-name';
 
 /**
  * Builds the sitemap from the rows the site can actually render. Every entry points at a dynamic
@@ -26,7 +26,11 @@ export function buildSitemap(
   for (const outage of allOutages) {
     for (const area of outage.affectedAreas) {
       for (const barangay of area.barangays) {
-        if (barangay.city) cities.add(slugify(barangay.city));
+        if (!barangay.city) continue;
+        for (const label of splitCityLabels(barangay.city)) {
+          if (isProvinceOnly(label)) continue;
+          cities.add(citySlug(label));
+        }
       }
     }
   }

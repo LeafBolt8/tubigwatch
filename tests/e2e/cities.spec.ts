@@ -144,6 +144,71 @@ test('dashboard exposes Browse all cities and preserves fixtures mode', async ({
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/cities/i);
 });
 
+test('/cities splits a compound city label into one row per city', async ({ page }) => {
+  await page.goto('/cities?source=fixtures');
+
+  // The row keeps the source spelling ("Antipolo, Rizal"); what must not survive is a second
+  // Antipolo for the compound label or a "Rizal" row for the province.
+  const antipoloLink = page.getByRole('link', { name: /antipolo/i });
+  const caintaLink = page.getByRole('link', { name: /cainta/i });
+  await expect(antipoloLink).toHaveCount(1);
+  await expect(caintaLink).toHaveCount(1);
+  await expect(page.getByRole('link', { name: /antipolo and cainta/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^rizal$/i })).toHaveCount(0);
+
+  // Canonical hrefs drop the comma province even though the row keeps the source spelling.
+  await expect(antipoloLink).toHaveAttribute('href', '/city/antipolo?source=fixtures');
+  await expect(caintaLink).toHaveAttribute('href', '/city/cainta?source=fixtures');
+  await expect(antipoloLink).toHaveText('Antipolo, Rizal');
+  await expect(caintaLink).toHaveText('Cainta, Rizal');
+});
+
+test('legacy comma slugs permanently redirect to canonical city slugs', async ({ page }) => {
+  const cases = [
+    { from: '/city/antipolo-rizal?source=fixtures', to: '/city/antipolo?source=fixtures' },
+    { from: '/city/cainta-rizal?source=fixtures', to: '/city/cainta?source=fixtures' },
+  ];
+
+  for (const { from, to } of cases) {
+    const response = await page.goto(from);
+    expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(to);
+    expect(response?.status()).toBe(200);
+  }
+});
+
+test('canonical city page renders the compound fixture after redirect', async ({ page }) => {
+  await page.goto('/city/antipolo-rizal?source=fixtures');
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Antipolo');
+  await expect(page.getByText(/antipolo and cainta boundary/i).first()).toBeVisible();
+});
+
+test('unknown city slug returns a real 404', async ({ page }) => {
+  const response = await page.goto('/city/binangonan?source=fixtures');
+  expect(response?.status()).toBe(404);
+});
+
+test('legacy slug for an unknown city returns a real 404', async ({ page }) => {
+  // No Binangonan row exists in CITY_COORDS or the fixtures, so the slug cannot even resolve to a
+  // canonical label, let alone redirect. It must answer a real 404 instead of a 200 shell.
+  const response = await page.goto('/city/binangonan-rizal?source=fixtures');
+  expect(response?.status()).toBe(404);
+  expect(new URL(page.url()).pathname).toBe('/city/binangonan-rizal');
+});
+
+test('compound fixture renders on both the Antipolo and Cainta city pages', async ({ page }) => {
+  for (const city of ['antipolo', 'cainta']) {
+    // Wait for the document, not every subresource: under two workers the load event can starve,
+    // and the assertions below are what actually prove the page rendered.
+    await page.goto(`/city/${city}?source=fixtures`, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(new RegExp(city, 'i'));
+    await expect(page.getByText(/antipolo and cainta boundary/i).first()).toBeVisible();
+    await expect(page.locator('a[href*="antipolo-and-cainta"]')).toHaveCount(0);
+    await expect(page.locator('a[href$="/city/rizal"]')).toHaveCount(0);
+  }
+});
+
 test('no-match search shows an empty state with a clear action', async ({ page }) => {
   await page.goto('/cities?source=fixtures');
   await waitForHydration(page);

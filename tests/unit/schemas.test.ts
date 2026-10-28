@@ -73,7 +73,8 @@ describe('OutageSchema', () => {
       counts[outage.status] = (counts[outage.status] ?? 0) + 1;
       return counts;
     }, {});
-    expect(statusCounts).toEqual({ active: 2, scheduled: 2, restored: 1, cancelled: 1 });
+    // The Antipolo/Cainta compound fixture is a third active row; the required mix still holds.
+    expect(statusCounts).toEqual({ active: 3, scheduled: 2, restored: 1, cancelled: 1 });
 
     const barangayNames = outageFixtures.flatMap((outage) =>
       outage.affectedAreas.flatMap((area) => area.barangays.map((barangay) => barangay.name)),

@@ -54,9 +54,9 @@ graph TD
 Every commit must pass a strict 5-gate CI pipeline:
 1. `npm run typecheck` (Strict TypeScript)
 2. `npm run lint` (ESLint + Custom Anti-slop Guardrail)
-3. `npm run test` (158 Unit Tests + Guardrail Tests)
+3. `npm run test` (174 Unit Tests + Guardrail Tests)
 4. `npm run build` (Next.js Production Build)
-5. `npm run e2e` (46 Playwright Browser Tests across Desktop and Mobile; 2 fixture-dependent skips)
+5. `npm run e2e` (58 Playwright Browser Tests across Desktop and Mobile; 2 fixture-dependent skips)
 
 ## 🛠️ Local Development
 

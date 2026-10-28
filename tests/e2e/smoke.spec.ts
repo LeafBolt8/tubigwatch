@@ -158,13 +158,14 @@ test('every city with affected barangays gets a pin', async ({ page }) => {
     ),
   );
 
-  // The list renders each entry as "<barangay>, <city>", so the trailing segment is the city.
+  // Each entry renders as "<barangay>, <city>" and, outside Metro Manila, "<barangay>, <city>,
+  // <province>". Dropping only the first segment keeps the pin's data-city label intact.
   const listedCities = (
     await page
       .getByRole('region', { name: /Affected Barangays/ })
       .getByRole('listitem')
       .allTextContents()
-  ).map((entry) => entry.split(',').pop()?.trim() ?? '');
+  ).map((entry) => entry.split(',').slice(1).join(',').trim());
 
   expect(listedCities.length).toBeGreaterThan(0);
   for (const city of listedCities) {

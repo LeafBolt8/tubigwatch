@@ -4,6 +4,7 @@ import type { AffectedArea } from '@/lib/schemas/affected-area';
 import type { Outage } from '@/lib/schemas/outage';
 import { buildCityDirectory } from '@/lib/utils/city-directory';
 import { cityKey } from '@/lib/utils/barangay-geo';
+import { cityLabelsInOutages, outageAffectsCity } from '@/lib/utils/city-name';
 import { slugify } from '@/lib/utils/slugify';
 
 const NOW = new Date('2026-10-25T12:00:00+08:00');
@@ -234,5 +235,43 @@ describe('buildCityDirectory', () => {
 
   it('returns an empty directory for an empty input', () => {
     expect(buildCityDirectory([], NOW)).toEqual([]);
+  });
+
+  it('splits a compound city label into one entry per city and emits no province entry', () => {
+    const compound = outage('compound', {
+      city: 'Antipolo and Cainta, Rizal',
+      areas: [
+        { city: 'Antipolo, Rizal', name: 'San Roque' },
+        { city: 'Cainta, Rizal', name: 'Sto. Niño' },
+      ],
+    });
+
+    const directory = buildCityDirectory([compound], NOW);
+    const keys = directory.map((entry) => entry.cityKey);
+
+    expect(keys).toHaveLength(2);
+    expect(directory.find((entry) => entry.cityKey === cityKey('Antipolo'))?.activeCount).toBe(1);
+    expect(directory.find((entry) => entry.cityKey === cityKey('Cainta'))?.activeCount).toBe(1);
+    expect(keys).not.toContain(cityKey('Antipolo and Cainta, Rizal'));
+    expect(keys).not.toContain(cityKey('Rizal'));
+  });
+
+  it('matches a compound-label outage for either city on the city-page helpers', () => {
+    const compound = outage('compound', {
+      city: 'Antipolo and Cainta, Rizal',
+      areas: [
+        { city: 'Antipolo, Rizal', name: 'San Roque' },
+        { city: 'Cainta, Rizal', name: 'Sto. Niño' },
+      ],
+    });
+
+    const advertisedKeys = new Set(cityLabelsInOutages([compound]).map((label) => cityKey(label)));
+    expect(advertisedKeys.has(cityKey('Antipolo'))).toBe(true);
+    expect(advertisedKeys.has(cityKey('Cainta'))).toBe(true);
+    expect(advertisedKeys.has(cityKey('Rizal'))).toBe(false);
+    expect(outageAffectsCity(compound, cityKey('Antipolo'))).toBe(true);
+    expect(outageAffectsCity(compound, cityKey('Cainta'))).toBe(true);
+    expect(outageAffectsCity(compound, cityKey('Rizal'))).toBe(false);
+    expect(outageAffectsCity(compound, cityKey('Antipolo and Cainta, Rizal'))).toBe(false);
   });
 });
