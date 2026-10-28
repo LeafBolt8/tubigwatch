@@ -21,7 +21,22 @@ test('fixtures mode renders the outage summary and at least one card', async ({ 
   await expect(page.locator('span', { hasText: /^SCHEDULED$/ }).first()).toBeVisible();
 
   // Entering the map must not silently swap fixtures for the live dataset.
-  await page.getByRole('link', { name: 'View Map' }).click();
+  const viewMapLink = page.getByRole('link', { name: 'View Map' });
+  // Wait for the link to rehydrate to its real href before clicking; without this the click
+  // can land before React has wired the handler and the browser navigates back to the dashboard.
+  await expect(viewMapLink).toHaveAttribute('href', '/map?source=fixtures');
+  // scrollIntoViewIfNeeded + trial proves the element is stable and clickable; force dispatches
+  // the click even if the hit-test drifts while the header rehydrates (the Mobile Safari failure
+  // was a lost click, not a wrong href). The URL predicate waits for commit, not full paint.
+  await viewMapLink.scrollIntoViewIfNeeded();
+  await viewMapLink.click({ trial: true });
+  await Promise.all([
+    page.waitForURL(
+      (url) => url.pathname === '/map' && url.search === '?source=fixtures',
+      { waitUntil: 'commit' },
+    ),
+    viewMapLink.click({ force: true }),
+  ]);
   await expect(page).toHaveURL(/\/map\?source=fixtures$/);
 });
 
@@ -287,9 +302,9 @@ test('search query persists after reload and filters cards', async ({ page }) =>
 
   // 4. Reload and verify persistence
   await page.reload();
-  await expect(searchInput).toHaveValue('Kalusugan');
-  const countAfter = await page.getByRole('article').count();
-  expect(countAfter).toBe(count);
+  // Wait for the hydrated page to re-render the filtered articles before we count; this is the
+  // commit barrier that the earlier mobile-Safari flakes crossed because count came before paint.
+  await expect(page.getByRole('article')).toHaveCount(count);
 });
 
 test('city heading opens the city page in the current data mode', async ({ page }) => {

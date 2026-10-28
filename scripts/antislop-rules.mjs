@@ -24,6 +24,7 @@ export const SCAN_EXTENSIONS = [
 export const JSX_EXTENSIONS = new Set(['.tsx', '.jsx']);
 
 export const DEFAULT_IGNORE_DIRS = new Set([
+  'playwright-report', 'test-results',
   'node_modules', '.git', '.next', '.nuxt', '.svelte-kit', '.astro', '.output',
   'dist', 'build', 'out', 'coverage', '.vercel', '.turbo', '.cache',
   '.ai-sources', '.freebuff', 'vendor', '__tests__', '__mocks__', '__snapshots__',

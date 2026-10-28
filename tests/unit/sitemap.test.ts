@@ -13,6 +13,7 @@ describe('buildSitemap', () => {
 
   test('includes the static pages', () => {
     expect(urls).toEqual(expect.arrayContaining([`${BASE}/`, `${BASE}/map`, `${BASE}/privacy`]));
+    expect(urls).toContain(`${BASE}/cities`);
   });
 
   test('includes one URL per fixture city', () => {

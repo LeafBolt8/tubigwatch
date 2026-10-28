@@ -401,6 +401,13 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
             >
               <MapIcon className="h-4 w-4" /> View Map
             </Link>
+
+            <Link
+              href={sourceParam === 'fixtures' ? '/cities?source=fixtures' : '/cities'}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Browse all cities
+            </Link>
           </div>
         </header>
 
@@ -534,6 +541,12 @@ export default function Dashboard({ outages, sourceErrors, sourceLabel }: Dashbo
         <div className="text-center py-16 px-8 bg-white rounded-2xl border border-slate-200 mt-6 shadow-sm">
           <p className="text-zinc-900 text-2xl font-bold">All clear!</p>
           <p className="text-zinc-600 mt-2 text-lg leading-relaxed">There are currently no active or scheduled water outages.</p>
+          <Link
+            href={sourceParam === 'fixtures' ? '/cities?source=fixtures' : '/cities'}
+            className="mt-4 inline-block rounded-lg text-blue-600 font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          >
+            Browse all cities
+          </Link>
         </div>
       ) : filteredOutages.length === 0 ? (
         <div className="text-center py-12 px-8 bg-white rounded-2xl border border-slate-200 mt-6 shadow-sm">

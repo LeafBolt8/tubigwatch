@@ -21,6 +21,9 @@ A skill-first, brainstorm → design → plan → execute → review loop. Disti
 - **Parallel agents only for independent domains.** Dispatch one agent per independent problem (different test files, different subsystems) with self-contained context, an explicit scope, constraints and a required output summary. Never parallelise work that shares state or files.
 - **Review early and often.** Request review after each task or major feature and before merge. Give the reviewer the description, the requirements and the base/head SHAs — never the session history. Fix Critical and Important findings before moving on; push back with evidence, not opinion.
 - **Verify before claiming done.** Run the project's own gates on the final version and exercise the behaviour; a passing build is not evidence that the feature works.
+- **Gate order: build before E2E.** `playwright.config`'s `webServer` runs `npm run start`, which serves the last `.next` artifact rather than source. Run `npm run build` before `npx playwright test`; testing stale code is a false-red trap.
+- **Never verify regex or escape literals with grep.** The shell collapses backslash layers before grep sees them, so results contradict each other. Audit character codes instead (read the file and log `charCodeAt`, or `JSON.stringify` the codes); that is the only source of truth.
+- **Playwright hydration barrier for fill-first tests.** Click a stateful control (a filter button) and assert its `aria-pressed` flip before typing into an input — see `waitForHydration` in `tests/e2e/cities.spec.ts`. Timeouts are not an acceptable substitute.
 
 ## Taste Skill — domain-grounded judgment and anti-slop UI (`.ai-sources/taste-skill/`)
 

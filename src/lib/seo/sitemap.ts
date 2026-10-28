@@ -17,6 +17,7 @@ export function buildSitemap(
   const routes: MetadataRoute.Sitemap = [
     { url: `${baseUrl}/`, lastModified, changeFrequency: 'hourly', priority: 1 },
     { url: `${baseUrl}/map`, lastModified, changeFrequency: 'hourly', priority: 0.8 },
+    { url: `${baseUrl}/cities`, lastModified, changeFrequency: 'daily', priority: 0.6 },
     { url: `${baseUrl}/privacy`, lastModified, changeFrequency: 'yearly', priority: 0.1 },
   ];
 
