@@ -136,8 +136,11 @@ test('dashboard exposes Browse all cities and preserves fixtures mode', async ({
   await expect(browseLink).toHaveAttribute('href', '/cities?source=fixtures');
 
   await browseLink.click();
+  // Wait for the history entry, not the load event: under two-worker contention the RSC
+  // navigation commits while subresources still keep `load` pending, which timed this test out.
   await page.waitForURL(
     (url) => url.pathname === '/cities' && url.search === '?source=fixtures',
+    { waitUntil: 'commit' },
   );
 
   expect(new URL(page.url()).pathname).toBe('/cities');

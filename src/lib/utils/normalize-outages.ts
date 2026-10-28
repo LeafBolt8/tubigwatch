@@ -10,19 +10,9 @@ import type { Outage } from '@/lib/schemas/outage';
 import { BARANGAY_TO_CITY } from '@/lib/utils/barangay-city-map';
 import { cleanBarangayName } from '@/lib/utils/barangay-name';
 
-function unifyCityName(city: string | undefined): string {
-  if (!city) return 'Unknown';
-
-  // Split on semicolons or ampersands in case the upstream returned multiple cities
-  // ("Las Pinas City; Paranaque City", "Pasig & Taguig City").
-  const parts = city.split(/[;&]/).map((c) => c.trim());
-
-  // If there's more than one city, we can't map it to a single unified city easily.
-  // But in our logic, `b.city` is only used as a fallback if the barangay name isn't in the dictionary.
-  // So we'll just take the first valid city from the split, or return the raw string if it's still a mess.
-  const firstPart = parts[0] || city;
-
-  const c = firstPart.trim();
+/** Spelling rules for one city label. Input has already been split and trimmed. */
+function normalizeSingleCity(city: string): string {
+  const c = city.trim();
   if (c === 'Navotas City' || c === 'Navotas') return 'Navotas';
   if (c === 'Muntinlupa City' || c === 'Muntinlupa') return 'Muntinlupa';
   if (
@@ -44,6 +34,24 @@ function unifyCityName(city: string | undefined): string {
   if (c === 'Pasig City' || c === 'Pasig') return 'Pasig';
 
   return c;
+}
+
+/**
+ * Normalizes a city field that may name several cities ("Las Pinas City; Paranaque City",
+ * "Pasig & Taguig City"). Every part is kept: the consumer splitter renders a preserved compound
+ * label under each of its cities, so dropping parts after the first would lose history that
+ * cannot be rebuilt from storage.
+ */
+function unifyCityName(city: string | undefined): string {
+  if (!city) return 'Unknown';
+
+  const parts = city
+    .split(/[;&]/)
+    .map(normalizeSingleCity)
+    .filter((part) => part !== '');
+
+  if (parts.length === 0) return 'Unknown';
+  return parts.join(' & ');
 }
 
 // Dictionary keys normalized with the same function used on incoming names. First key wins
@@ -77,7 +85,7 @@ function resolveBarangayCity(cleanName: string, rowCity: string | undefined): st
 
   if (!dictCity) return unifiedRowCity;
 
-  const isMultiCityRow = (rowCity || '').includes(';');
+  const isMultiCityRow = /[;&]/.test(rowCity || '');
   const isAmbiguous = AMBIGUOUS_BARANGAYS.has(cleanName);
 
   if (isAmbiguous && !isMultiCityRow && unifiedRowCity !== 'Unknown') {

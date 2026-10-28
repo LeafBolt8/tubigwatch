@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeOutages } from '@/lib/utils/normalize-outages';
+import type { Barangay } from '@/lib/schemas/barangay';
 import type { Outage } from '@/lib/schemas/outage';
+import { buildCityDirectory } from '@/lib/utils/city-directory';
+import { normalizeOutages } from '@/lib/utils/normalize-outages';
 
 describe('normalizeOutages', () => {
   it('corrects a misplaced city for Brgy. BF Homes', () => {
@@ -163,7 +165,7 @@ describe('normalizeOutages', () => {
     expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
   });
 
-  it('unifies a semicolon-separated city fallback to its first city', () => {
+  it('keeps every city in a semicolon-separated fallback', () => {
     const input: Outage[] = [
       {
         id: 'test-6',
@@ -193,7 +195,7 @@ describe('normalizeOutages', () => {
       },
     ];
 
-    expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas');
+    expect(normalizeOutages(input)[0]?.city).toBe('Las Piñas & Muntinlupa & Parañaque');
   });
 
   it('keeps an ambiguous barangay in the row city when the row names one city', () => {
@@ -347,7 +349,7 @@ describe('normalizeOutages', () => {
     expect(normalizeOutages(input)[0]?.city).toBe('Pasig');
   });
 
-  it('splits an ampersand-separated city string on the first city', () => {
+  it('keeps every city in an ampersand-separated city string', () => {
     const input: Outage[] = [
       {
         id: 'test-9',
@@ -373,7 +375,7 @@ describe('normalizeOutages', () => {
       },
     ];
 
-    expect(normalizeOutages(input)[0]?.city).toBe('Pasig');
+    expect(normalizeOutages(input)[0]?.city).toBe('Pasig & Taguig City');
   });
 
   it('strips a "Portions of" prefix before looking the barangay up', () => {
@@ -453,5 +455,157 @@ describe('normalizeOutages', () => {
 
     expect(byCity.get('Taytay, Rizal')).toEqual(['Sta. Ana']);
     expect(byCity.get('Pasig')).toEqual(['Pinagbuhatan']);
+  });
+});
+
+describe('compound city labels', () => {
+  const NOW = new Date('2026-10-15T12:00:00Z');
+
+  // A barangay the dictionary does not know, so the row's own city label is what decides buckets.
+  const UNKNOWN_BARANGAY = 'Sample Unknown Barangay';
+
+  function makeRow(
+    id: string,
+    barangays: Array<{ name: string; city: string; province?: Barangay['province'] }>,
+  ): Outage {
+    return {
+      id,
+      concessionaire: 'manila-water',
+      status: 'active',
+      reason: 'Water Service Interruption',
+      startsAt: new Date('2026-10-15T06:00:00Z'),
+      endsAt: new Date('2026-10-15T18:00:00Z'),
+      affectedAreas: [
+        {
+          barangays: barangays.map((b) => ({
+            name: b.name,
+            city: b.city,
+            province: b.province ?? 'Metro Manila',
+          })),
+          streets: [],
+          notes: '',
+        },
+      ],
+      source: { url: 'https://example.com/advisories', fetchedAt: NOW },
+      confidence: 'official' as const,
+    };
+  }
+
+  function cityFor(label: string): string | undefined {
+    const normalized = normalizeOutages([
+      makeRow('one-city', [{ name: UNKNOWN_BARANGAY, city: label }]),
+    ]);
+    return normalized[0]?.city;
+  }
+
+  it('drops a redundant "City" suffix', () => {
+    expect(cityFor('Navotas City')).toBe('Navotas');
+  });
+
+  it('normalizes each part of an ampersand compound', () => {
+    expect(cityFor('Navotas City & Malabon')).toBe('Navotas & Malabon');
+  });
+
+  it('preserves a compound label whose parts match no rule', () => {
+    expect(cityFor('Pasig & Taguig City')).toBe('Pasig & Taguig City');
+  });
+
+  it('rejoins a semicolon compound in the ampersand form', () => {
+    expect(cityFor('Las Pinas City; Paranaque City')).toBe('Las Piñas & Parañaque');
+  });
+
+  it('leaves a single city label unchanged', () => {
+    expect(cityFor('Pasig')).toBe('Pasig');
+  });
+
+  it('passes a province label through unchanged', () => {
+    expect(cityFor('Rizal')).toBe('Rizal');
+  });
+
+  it('returns Unknown when the city is empty or missing', () => {
+    const missing = normalizeOutages([
+      makeRow('no-city', [
+        { name: UNKNOWN_BARANGAY, city: undefined as unknown as string },
+      ]),
+    ]);
+
+    expect(cityFor('')).toBe('Unknown');
+    expect(missing[0]?.city).toBe('Unknown');
+  });
+
+  it('trusts a single-city label for an ambiguous barangay', () => {
+    // "San Antonio" exists in Parañaque but also in Quezon City and Pasig, so the row wins.
+    const normalized = normalizeOutages([
+      makeRow('ambiguous-one', [{ name: 'San Antonio', city: 'Pasig' }]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.city).toBe('Pasig');
+  });
+
+  it('uses a single-city label that is itself the ambiguous barangay name', () => {
+    const normalized = normalizeOutages([
+      makeRow('ambiguous-name', [{ name: 'San Antonio', city: 'San Antonio' }]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.city).toBe('San Antonio');
+  });
+
+  it('treats an ampersand label as multi-city for an ambiguous barangay', () => {
+    const normalized = normalizeOutages([
+      makeRow('ambiguous-amp', [{ name: 'San Antonio', city: 'Pasig & Taguig City' }]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    // Multi-city rows fall back to the dictionary, which places San Antonio in Parañaque.
+    expect(normalized[0]?.city).toBe('Parañaque');
+  });
+
+  it('treats a semicolon label as multi-city for an ambiguous barangay', () => {
+    const normalized = normalizeOutages([
+      makeRow('ambiguous-semi', [{ name: 'San Antonio', city: 'Pasig; Taguig City' }]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.city).toBe('Parañaque');
+  });
+
+  it('preserves a compound label for a barangay the dictionary does not know', () => {
+    const normalized = normalizeOutages([
+      makeRow('test-compound-1', [
+        { name: 'SomeUnknownBrgy', city: 'Pasig & Taguig City' },
+      ]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.city).toBe('Pasig & Taguig City');
+    expect(normalized[0]?.id.startsWith('test-compound-1-')).toBe(true);
+  });
+
+  it('still lets the dictionary resolve a known barangay on a compound row', () => {
+    const normalized = normalizeOutages([
+      makeRow('test-compound-2', [{ name: 'Ususan', city: 'Pasig & Taguig City' }]),
+    ]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.city).toBe('Taguig');
+  });
+
+  it('splits a preserved compound label into one directory entry per city', () => {
+    const normalized = normalizeOutages([
+      makeRow('test-compound-1', [
+        { name: 'SomeUnknownBrgy', city: 'Pasig & Taguig City' },
+      ]),
+    ]);
+
+    const directory = buildCityDirectory(normalized, NOW);
+    const byCity = new Map(directory.map((entry) => [entry.city, entry]));
+
+    expect(directory).toHaveLength(2);
+    expect([...byCity.keys()].sort()).toEqual(['Pasig', 'Taguig City']);
+    expect(byCity.get('Pasig')?.activeCount).toBe(1);
+    expect(byCity.get('Taguig City')?.activeCount).toBe(1);
+    expect(byCity.has('Pasig & Taguig City')).toBe(false);
   });
 });
